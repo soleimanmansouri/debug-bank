@@ -156,6 +156,55 @@ Each pattern has: description, 30-second check list, real-world examples, fix st
 | P18 | [Model Loops Without Stop Signal](patterns/P18-loop-without-stop.md) | Set precise timeouts, add idempotency guards |
 | P19 | [Prompt Engineering Has Hard Limits](patterns/P19-prompt-hard-limits.md) | Switch to code-level after 2 failed prompt fixes |
 
+## Scenarios — Multi-Service Debugging Challenges
+
+Single-file bugs are for practice. Real production bugs span services, databases, and timing boundaries. The `scenarios/` directory contains self-contained L3-L4 debugging environments where the symptom is in one place and the root cause is somewhere else entirely.
+
+| # | Name | Tier | Patterns | Key Challenge |
+|---|------|------|----------|---------------|
+| S01 | [Stale Cache Race](scenarios/S01-stale-cache-race.md) | L4 | P02 + P08 | Cache invalidation arrives after consumer reads stale data |
+| S02 | [Retry Storm Amplification](scenarios/S02-retry-storm-amplification.md) | L4 | P06 + P03 | Library upgrade changes retry defaults, cascading across services |
+| S03 | [Silent Schema Drift](scenarios/S03-silent-schema-drift.md) | L3 | P07 + P02 + P13 | Migration runs but service reads stale schema cache |
+
+Each scenario includes: system architecture, red herrings, full investigation path, solution, and blast-radius analysis. See [scenarios/README.md](scenarios/README.md) for the full guide.
+
+## Postmortems — Learning From Production Incidents
+
+Anonymized postmortem reports from real incidents. Each goes beyond "what broke" to cover timeline, false leads, blast radius, and — most importantly — systemic mitigation that prevents the entire CLASS of incident.
+
+| # | Title | Duration | Impact | Patterns |
+|---|-------|----------|--------|----------|
+| PM01 | [The Invisible Throttle](postmortems/PM01-invisible-throttle.md) | 4.5 hours | 12% of requests silently degraded | P07 + P13 |
+| PM02 | [Midnight Migration](postmortems/PM02-midnight-migration.md) | 2 hours | Full outage + 30 min data loss | P02 + P08 |
+| PM03 | [The Helpful Retry](postmortems/PM03-helpful-retry.md) | 35 minutes | $23K in duplicate charges | P06 + P03 |
+
+See [postmortems/README.md](postmortems/README.md) for the template and writing guide.
+
+## Compositions — When Patterns Combine
+
+Real bugs rarely match a single pattern. Compositions document common pattern pairings, why they amplify each other, and how to detect the combination.
+
+| ID | Composition | Patterns | Signal |
+|----|------------|----------|--------|
+| C01 | [Write Race + Stale Fallback](compositions/C01-write-race-stale-fallback.md) | P02 + P08 | Intermittent stale data that self-heals then re-breaks |
+| C02 | [Upgrade Cascade + Retry Multiplier](compositions/C02-upgrade-cascade-retry-multiplier.md) | P06 + P03 | Traffic amplification after dependency update |
+| C03 | [Silent Success + Stale Config](compositions/C03-silent-success-stale-config.md) | P13 + P07 | Wrong results, no errors, 100% "success" rate |
+| C04 | [LLM Hallucination + Missing Stop](compositions/C04-llm-hallucination-missing-stop.md) | P04 + P18 | AI agent loops wrong behavior confidently |
+| C05 | [Prompt Limits + Flag Duality](compositions/C05-prompt-limits-flag-duality.md) | P19 + P05 | Prompt fix breaks opposite context |
+
+See [compositions/README.md](compositions/README.md) for investigation strategies.
+
+## Difficulty Tiers
+
+The protocol scales with the bug's scope. Use the [Difficulty Tiers guide](protocol/difficulty-tiers.md) to right-size your investigation:
+
+| Tier | Scope | Time Budget | Example |
+|------|-------|-------------|---------|
+| **L1** | Single file | 5-30 min | Off-by-one, wrong variable, missing null check |
+| **L2** | Multi-file, single service | 30 min - 2 hours | Controller returns wrong data due to service layer bug |
+| **L3** | Multi-service | 2-8 hours | Service A writes correctly, service B reads stale cache |
+| **L4** | Distributed / timing | 4 hours - 2 days | Cache invalidation race, retry storm, eventual consistency violation |
+
 ## Feedback Rules — Your Agent Adapts to You
 
 When you correct your agent, the correction becomes a persistent rule:
@@ -182,10 +231,22 @@ debug-bank/
 ├── protocol/
 │   ├── debug-trajectory.md            # The 7-step protocol
 │   ├── 3-exchange-rule.md             # When to stop and re-plan
+│   ├── difficulty-tiers.md            # L1-L4 scale selector
 │   └── feedback-capture.md            # Corrections → persistent rules
 ├── patterns/
 │   ├── P01 through P19               # 19 battle-tested patterns
 │   └── TEMPLATE.md                    # Add your own
+├── compositions/                      # Common pattern combinations
+│   ├── C01 through C05               # 5 documented compositions
+│   └── README.md
+├── scenarios/                         # Multi-service debugging challenges
+│   ├── S01 through S03               # L3-L4 scenarios with full solutions
+│   ├── TEMPLATE.md
+│   └── README.md
+├── postmortems/                       # Anonymized production incidents
+│   ├── PM01 through PM03             # With blast radius + systemic mitigation
+│   ├── TEMPLATE.md
+│   └── README.md
 ├── memory/
 │   ├── schema.md                      # Memory file format
 │   ├── feedback-rules.md              # Behavioral rule structure
