@@ -161,7 +161,7 @@ Exit code: 1
 
 No flagged patterns means a clean scan — the script exits 0 and the deploy proceeds.
 
-## 21 Battle-Tested Patterns
+## 22 Battle-Tested Patterns
 
 Each pattern has: description, 30-second check list, real-world examples, fix strategy, prevention guide.
 
@@ -209,6 +209,7 @@ Each pattern has: description, 30-second check list, real-world examples, fix st
 | P17 | [Model Speaks Everything in Context](patterns/P17-context-spoken.md) | Keep speakable text out of conversation history |
 | P18 | [Model Loops Without Stop Signal](patterns/P18-loop-without-stop.md) | Set precise timeouts, add idempotency guards |
 | P19 | [Prompt Engineering Has Hard Limits](patterns/P19-prompt-hard-limits.md) | Switch to code-level after 2 failed prompt fixes |
+| P22 | [Iterative Fix Regression (Failswitch)](patterns/P22-iterative-fix-regression.md) | STOP after 2 failed fixes — deep analyze before attempt 3 |
 
 ## Scenarios — Multi-Service Debugging Challenges
 
@@ -288,7 +289,7 @@ debug-bank/
 │   ├── difficulty-tiers.md            # L1-L4 scale selector
 │   └── feedback-capture.md            # Corrections → persistent rules
 ├── patterns/
-│   ├── P01 through P21               # 21 battle-tested patterns
+│   ├── P01 through P22               # 22 battle-tested patterns
 │   └── TEMPLATE.md                    # Add your own
 ├── compositions/                      # Common pattern combinations
 │   ├── C01 through C05               # 5 documented compositions

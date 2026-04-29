@@ -39,6 +39,7 @@ Patterns are generalized root cause types extracted from real debugging sessions
 | P19 | Prompt Engineering Has Hard Limits | Switch to code-level after 2 failed prompt fixes |
 | P20 | Filler/Background Audio Pipeline Contention | Verify filler stops BEFORE control frames (Cancel, End) |
 | P21 | Untested Handler Path After Shared Code Change | Test EACH handler path after modifying shared code |
+| P22 | Iterative Fix Regression (Failswitch) | STOP after 2 failed fixes — deep analyze before attempt 3 |
 
 ## Pattern Categories
 
@@ -47,7 +48,7 @@ Patterns are generalized root cause types extracted from real debugging sessions
 - **Configuration** (P07, P08, P10): Bugs from multi-source config
 - **Dependencies** (P06): Bugs from package management
 - **Platform Quirks** (P11-P16): Bugs from platform-specific behavior
-- **LLM/AI** (P04, P17-P19): Bugs specific to AI/LLM systems
+- **LLM/AI** (P04, P17-P19, P22): Bugs specific to AI/LLM systems
 
 ## Adding New Patterns
 
