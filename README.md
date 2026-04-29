@@ -9,7 +9,7 @@
 
 **Give your AI coding agent a memory that learns from failure.**
 
-AI agents repeat the same mistakes because they forget everything between sessions. Debug Bank fixes this — a pattern-first debugging memory that checks "have I seen this before?" in 30 seconds instead of re-investigating for hours.
+AI agents repeat the same mistakes because they forget everything between sessions. Debug Bank fixes this — a pattern-first debugging memory that checks "have I seen this before?" in 30 seconds instead of re-investigating for hours, and catches known failure patterns before they ship.
 
 > **One-liner:** Drop a `CLAUDE.md` into your project. Your agent never makes the same debugging mistake twice.
 
@@ -24,6 +24,11 @@ curl -O https://raw.githubusercontent.com/soleimanmansouri/debug-bank/main/CLAUD
 ```mermaid
 graph TD
     BUG["Bug Reported"] --> PC["Step 1: Pattern Check (30s)"]
+    DEPLOY["About to Deploy"] --> PDS["Pre-Deploy Scan"]
+    PDS -->|"Patterns flagged"| REVIEW["Review / Fix before shipping"]
+    PDS -->|"No matches"| SHIP["Deploy"]
+    REVIEW --> SHIP
+
     PC -->|"Match found"| VERIFY["Verify known fix applies"]
     PC -->|"No match"| REPRODUCE["Step 2: Reproduce"]
     VERIFY -->|"Confirmed"| FIX["Step 6: Fix"]
@@ -40,23 +45,29 @@ graph TD
     RECORD --> DC["Domain Catalog grows"]
     PB -.->|"Next bug"| PC
     DC -.->|"Next bug"| PC
+    PB -.->|"Next deploy"| PDS
+    DC -.->|"Next deploy"| PDS
 
     style BUG fill:#ff6b6b,stroke:#333,color:#fff
+    style DEPLOY fill:#fd9644,stroke:#333,color:#fff
     style PC fill:#4ecdc4,stroke:#333,color:#fff
+    style PDS fill:#4ecdc4,stroke:#333,color:#fff
     style STOP fill:#ff6b6b,stroke:#333,color:#fff
     style FIX fill:#95e77e,stroke:#333,color:#000
     style RECORD fill:#a29bfe,stroke:#333,color:#fff
     style PB fill:#74b9ff,stroke:#333,color:#000
     style DC fill:#74b9ff,stroke:#333,color:#000
+    style SHIP fill:#95e77e,stroke:#333,color:#000
 ```
 
 Three layers that compound over time:
 
 | Layer | What It Does | How It Helps |
 |-------|-------------|--------------|
-| **Pattern Bank** (P01-P19+) | Generalized root cause patterns | 30-second match before hours of investigation |
+| **Pattern Bank** (P01-P21+) | Generalized root cause patterns | 30-second match before hours of investigation |
 | **Domain Catalogs** | Bugs organized by subsystem | Search by symptom type, not by date |
 | **Feedback Rules** | User corrections → enforceable rules | Agent adapts to YOUR working style |
+| **Pre-Deploy Scanner** | Scans git diff against pattern keywords before shipping | Catches known failure classes before they reach production |
 
 ## The Problem This Solves
 
@@ -109,7 +120,48 @@ The single most impactful rule in this repo:
 
 This prevents the #1 failure mode of AI agents — circular debugging that wastes tokens and produces nothing. After switching strategy, the counter resets.
 
-## 19 Battle-Tested Patterns
+## Pre-Deploy Pattern Scanner
+
+Before a bug ships is the cheapest time to catch it. The pre-deploy scanner scans your `git diff` against the 21 pattern keywords and flags any matches before you deploy.
+
+**What it does:**
+- Greps the staged diff for keywords linked to each pattern (e.g., `observer`, `subscribe`, `multiple writers`, `fallback`, `retry`)
+- Prints a ranked list of flagged patterns with their quick-check
+- Exits non-zero when matches are found, so it can block a deploy pipeline
+
+**Run it manually:**
+
+```bash
+bash integrations/pre-deploy-check.sh
+```
+
+**Hook it into Claude Code** — so it runs automatically before every deploy action. See the full setup guide:
+
+```
+integrations/claude-code-pre-deploy.md
+```
+
+**Example output:**
+
+```
+[debug-bank] Pre-Deploy Pattern Scan
+Scanning git diff for known failure patterns...
+
+  FLAGGED  P03 Observer/Hook Multiplier
+           keyword: subscribe
+           Check: Deduplicate by event/frame ID
+
+  FLAGGED  P08 Config Resolution Chain Gap
+           keyword: fallback
+           Check: Trace the full fallback chain
+
+2 pattern(s) flagged. Review before deploying.
+Exit code: 1
+```
+
+No flagged patterns means a clean scan — the script exits 0 and the deploy proceeds.
+
+## 21 Battle-Tested Patterns
 
 Each pattern has: description, 30-second check list, real-world examples, fix strategy, prevention guide.
 
@@ -119,6 +171,8 @@ Each pattern has: description, 30-second check list, real-world examples, fix st
 | P01 | [Wrapper/Decorator Default Mismatch](patterns/P01-wrapper-defaults.md) | Audit ALL parent class defaults when wrapping |
 | P03 | [Observer/Hook Multiplier](patterns/P03-observer-multiplier.md) | Deduplicate by event/frame ID |
 | P05 | [Context-Dependent Flag Duality](patterns/P05-flag-duality.md) | Check if any context needs the opposite value |
+| P20 | [Filler/Background Audio Pipeline Contention](patterns/P20-filler-pipeline-contention.md) | Ensure only one source writes to the audio pipeline at a time |
+| P21 | [Untested Handler Path After Shared Code Change](patterns/P21-untested-handler-path.md) | Test ALL handlers in files you changed, not just the one you edited |
 
 ### Data Integrity
 | ID | Pattern | Quick Check |
@@ -234,7 +288,7 @@ debug-bank/
 │   ├── difficulty-tiers.md            # L1-L4 scale selector
 │   └── feedback-capture.md            # Corrections → persistent rules
 ├── patterns/
-│   ├── P01 through P19               # 19 battle-tested patterns
+│   ├── P01 through P21               # 21 battle-tested patterns
 │   └── TEMPLATE.md                    # Add your own
 ├── compositions/                      # Common pattern combinations
 │   ├── C01 through C05               # 5 documented compositions
@@ -262,7 +316,9 @@ debug-bank/
     ├── claude-code.md
     ├── codex-cli.md
     ├── gemini-cli.md
-    └── cursor.md
+    ├── cursor.md
+    ├── pre-deploy-check.sh            # Bash scanner: git diff → pattern keywords
+    └── claude-code-pre-deploy.md      # Claude Code hook integration guide
 ```
 
 ## Why This Works

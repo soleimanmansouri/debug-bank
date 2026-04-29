@@ -6,7 +6,7 @@ This file provides the debug trajectory protocol for any AI coding agent (Codex 
 
 ### Before Investigating Any Bug
 
-1. Read files in `patterns/` directory for matching root cause patterns (P01-P19+)
+1. Read files in `patterns/` directory for matching root cause patterns (P01-P21+)
 2. Search `examples/` for similar symptoms in domain catalogs
 3. Only then start: Reproduce → Hypothesize → Isolate → Diagnose → Fix → Record
 
