@@ -37,10 +37,12 @@ Patterns are generalized root cause types extracted from real debugging sessions
 | P17 | Model Speaks Everything in Context | Keep speakable text out of conversation history |
 | P18 | Model Loops Without Stop Signal | Set precise timeouts, add idempotency guards |
 | P19 | Prompt Engineering Has Hard Limits | Switch to code-level after 2 failed prompt fixes |
+| P20 | Filler/Background Audio Pipeline Contention | Verify filler stops BEFORE control frames (Cancel, End) |
+| P21 | Untested Handler Path After Shared Code Change | Test EACH handler path after modifying shared code |
 
 ## Pattern Categories
 
-- **Code Structure** (P01, P03, P05): Bugs from how code is organized
+- **Code Structure** (P01, P03, P05, P20, P21): Bugs from how code is organized
 - **Data Integrity** (P02, P09): Bugs from competing data writers
 - **Configuration** (P07, P08, P10): Bugs from multi-source config
 - **Dependencies** (P06): Bugs from package management
