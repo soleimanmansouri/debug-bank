@@ -23,13 +23,13 @@ If 2+ checks are "yes," this pattern likely matches.
 ## Examples
 
 ### Example 1: Gemini Live Infinite Tool Call Loop
-**Setup:** Voice pipeline uses Gemini Live S2S. `check_availability` tool returns empty slots (no DMS data), Gemini calls it 14+ times per call creating 60s dead-air gaps.
+**Setup:** Voice pipeline uses Gemini Live S2S. `check_availability` tool returns empty slots (no DMS data), Gemini calls it 12+ times per call creating 60s dead-air gaps. Real customers affected (465s call).
 **Symptom:** Caller hears silence for 30-60 seconds, says "Hallo? Hallo?" — agent doesn't respond.
-**Fix attempt 1:** Added per-date loop guard with counter — Gemini ignores the error message in `result_callback` and keeps calling.
-**Fix attempt 2:** Added HARD KILL with stronger error text — Gemini still ignores all tool result content completely.
-**Fix attempt 3:** Added `_avail_loop_count` global tracker — didn't help because Gemini switches to new dates, resetting per-date guards.
-**Root cause (found after deep analysis):** Three layers: (1) `check_availability` returned `available_slots: []` for "no DMS data" — identical to "fully booked" — so handler told Gemini "no slots available" which triggered retry with new date. (2) Pipecat's 150ms dedup skipped execution but sent NO tool response — Gemini hangs without a response and retries. (3) All "fix" attempts used text instructions in `result_callback` — but Gemini Live ignores tool result TEXT content and only responds to structured data with positive signals.
-**Fix:** (a) Return `{"available": true, "noted": true}` instead of empty slots when no DMS data exists. (b) Increase dedup to 3s and always send tool response. (c) Add total-calls circuit breaker (max 3) that returns positive result.
+**Fix attempt 1:** Added per-date loop guard with error text in `result_callback` — Gemini ignores it.
+**Fix attempt 2:** Circuit breaker returning structured `{"available": true, "noted": true}` via `result_callback` — Gemini still ignores it. Data analysis confirmed circuit breaker fired 8+ times, all results dropped.
+**Fix attempt 3:** Increased dedup window, returned positive structured data — still 12 calls in one session.
+**Root cause (found after deep multi-agent analysis):** `result_callback()` broadcasts a `FunctionCallResultFrame` into the pipeline, but S2S mode has NO context aggregator — the frame goes to transport (ignored). **Tool results never reached Gemini at all.** The flow manager uses `_tool_result()` to send directly via WebSocket, but handlers registered via `register_function()` bypassed this path. Two delivery mechanisms existed — one worked, one silently dropped results with no error.
+**Fix:** Added `_send_tool_result()` helper that calls `gemini_live._tool_result()` directly, matching the flow manager's working path.
 
 ### Example 2: Retry Storm in API Integration
 **Setup:** Webhook handler retries on 5xx errors with exponential backoff. Target API returns 503 during maintenance.
