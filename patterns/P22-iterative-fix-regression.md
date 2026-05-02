@@ -55,6 +55,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - **Use structured data, not text instructions, for tool results:** LLMs (especially multimodal/live) respond to data structure (booleans, enums) more reliably than natural language instructions in tool responses.
 - **Test the "no data" path explicitly:** When a function has a "data not available" branch, ensure it returns a DISTINGUISHABLE result from "negative result." Empty list means different things in different contexts.
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- The DELIVERY point of the tool result — for Gemini Live S2S this is `gemini_live._tool_result()` or `_send_tool_result()`; for standard LLMs it's wherever `FunctionCallResultFrame` is enqueued — NOT where the result is generated
+- `result_callback()` — Break here and inspect whether the frame it produces is routed to a context aggregator or directly to transport (the silent-drop point)
+
+**Watch Expressions:**
+- `websocket.send()` payload — Confirm the tool result JSON actually goes over the wire; absence here is definitive proof of silent drop
+- `context_aggregator.messages` after `result_callback()` — If the tool result does not appear here, it was never aggregated and the model never saw it
+- `circuit_breaker.trip_count` or `guard.invocation_count` — A high value (8+) while the symptom persists proves the guard fires but has no effect
+
+**Isolation Technique:**
+Break at the delivery point and manually inspect the WebSocket send buffer or context aggregator state. If the tool result is absent from both, the delivery path is broken — everything upstream (generation, guards, retries) is irrelevant.
+
+**Expected Evidence:**
+Confirms pattern: tool result generated correctly, `result_callback()` called, but `websocket.send()` never carries the result payload and `context_aggregator.messages` never includes it. Rules it out: result appears in the WebSocket send buffer — delivery is working, the model is genuinely ignoring it.
+
 ## Related Patterns
 
 - **P18** — Model Loops Without Stop Signal: the specific loop behavior that often triggers iterative fix regression

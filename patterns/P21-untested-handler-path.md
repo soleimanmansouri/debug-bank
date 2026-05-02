@@ -49,6 +49,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - In CI, tag handlers by lifecycle type and require at least one test per type when shared code changes
 - Pre-deploy checklist: "Which handlers use this code? Which have unique lifecycles? Did I test those?"
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- Entry point of the shared function or decorator (e.g., `handler_decorator.__call__()`) — Set once; note the full call stack on each hit to distinguish Handler A vs Handler B invocations
+- The divergence branch inside the shared code (any `if`/`elif` that checks handler type or lifecycle state) — This is where Handler B takes a different path
+
+**Watch Expressions:**
+- `handler.__class__.__name__` or `handler.handler_type` — Identifies which handler is executing the shared code
+- `teardown_sequence` or `frame_sequence` list — Comparing Handler A's sequence to Handler B's sequence at the same breakpoint reveals the lifecycle difference
+- `filler.is_active` at the point of `queue_frame(CancelFrame)` — The classic divergence for the filler/transfer case
+
+**Isolation Technique:**
+Run Handler A to completion while recording every branch taken in the shared code. Then run Handler B. Step through the same shared code and watch for the first branch where execution diverges. That branch is the untested path.
+
+**Expected Evidence:**
+Confirms pattern: Handler A and Handler B hit a different branch in the shared code; Handler B's branch was never exercised during the original test. Rules it out: both handlers follow identical execution paths through the shared code.
+
 ## Related Patterns
 
 - **P20** — Filler pipeline contention is often discovered through this pattern (tested one handler, missed another)

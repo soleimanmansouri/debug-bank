@@ -45,6 +45,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - When working with binary data on any platform, always check if the data is inline or reference-based
 - Read platform docs for binary/file handling before writing code
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `code_node.execute` — inspect `items[itemIndex].binary` at the point where binary data is first accessed
+- `this.helpers.getBinaryDataBuffer` (or platform equivalent) — confirm this path is being used vs direct property access
+
+**Watch Expressions:**
+- `item.binary.data.data` — what type and length is it? A real buffer is thousands of bytes; a reference is under 200 chars
+- `typeof item.binary.data.data` — `string` signals a reference; `Buffer`/`bytes` signals inline data
+- `item.binary.data.data.startsWith('http')` or `.startsWith('gs://')` — confirms it is a URL reference
+
+**Isolation Technique:**
+At the binary access point, print `len(data)` or `data[:80]`. If the length is under 300 and the value starts with `http`, `gs://`, `s3://`, or resembles a UUID/hash, it is a reference. Then verify the platform helper exists (`this.helpers.getBinaryDataBuffer`) and call it instead — confirm the returned buffer length is much larger.
+
+**Expected Evidence:**
+Confirms: `item.binary.data.data` is a short string URL or storage key (e.g., `"https://storage.example.com/files/abc123"`). Rules out: data is a `Buffer` or `bytes` object with length matching the expected file size.
+
 ## Related Patterns
 
 - **P11** — Platform-specific access patterns are a theme across P11-P16

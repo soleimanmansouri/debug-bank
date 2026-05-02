@@ -47,6 +47,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Use separate pipelines for "read feedback" and "apply changes"
 - Add minimum structural requirements (length, format, required fields) to all automated write targets
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `pipeline.write_field` / the function that assigns a value to the structured target field — catch the write before it commits
+- `pipeline.read_source` — inspect what text is being ingested from the feedback source
+
+**Watch Expressions:**
+- `target_value` — does the string look like a sentence/paragraph, not a valid config value?
+- `len(target_value)` — free-text is usually far longer than a valid structured value
+- `source_field_name` — confirm whether the field being read is a free-text field (e.g., `description`, `comment`)
+
+**Isolation Technique:**
+Step from the read to the write without executing any transformation step. If no transformation exists, that absence is the bug — free-text is flowing directly to a structured field.
+
+**Expected Evidence:**
+Confirms: `target_value` is a sentence or paragraph (e.g., "Fixed the bug in the login flow"). Rules out: `target_value` matches an expected enum, pattern, or short structured token.
+
 ## Related Patterns
 
 - **P02** — Auto-apply is a specific case of an unwanted writer

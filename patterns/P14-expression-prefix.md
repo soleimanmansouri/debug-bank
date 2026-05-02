@@ -39,6 +39,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - When using a new platform, always test a simple expression first
 - Document the platform's expression syntax in your project notes
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `field_resolver.resolve` / the function that evaluates a node field's value — inspect raw field string and resolved output
+- `node.execute` — check the final resolved parameter map before the node runs its logic
+
+**Watch Expressions:**
+- `field.raw_value` — the string as stored in the node config (e.g., `"{{ $json.email }}"`)
+- `field.resolved_value` — what the runtime actually passes to the node
+- `field.raw_value == field.resolved_value` — if True, no interpolation occurred
+
+**Isolation Technique:**
+At the resolver breakpoint, compare `raw_value` to `resolved_value`. If they are identical and `raw_value` contains a template expression, the resolver skipped this field. Then test the same expression with the required prefix (e.g., `=`) and re-run — watch for `resolved_value` to change to the interpolated result.
+
+**Expected Evidence:**
+Confirms: `raw_value` contains `{{ ... }}` or `$json.` and `resolved_value` is the same literal string — no substitution happened. Rules out: `resolved_value` differs from `raw_value` and contains the expected runtime data.
+
 ## Related Patterns
 
 - **P11** — Credential scope limitations are another expression evaluation issue

@@ -46,6 +46,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Test non-JSON bodies with a request inspector before connecting to the real API
 - Check if the platform has a "raw body" mode that bypasses expression evaluation
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `expression_engine.process` / the method that transforms the body before sending — capture input and output
+- `http_node.execute` — inspect the body both before and after the node's internal processing step
+
+**Watch Expressions:**
+- `body_before` — the raw body string as provided by the user
+- `body_after` — the body string after expression engine processing
+- `body_before == body_after` — if False and body is XML/YAML, corruption confirmed
+
+**Isolation Technique:**
+Hardcode a static non-templated XML or YAML body (no `{{` or `$` expressions) and observe whether the engine still mutates it. If a static body also gets corrupted, the engine is unconditionally processing the content type. Then compare byte-for-byte using `repr()` or hex dump to catch invisible whitespace changes.
+
+**Expected Evidence:**
+Confirms: `body_before != body_after` — XML tags altered, indentation collapsed, or special characters escaped. Rules out: bodies are identical byte-for-byte after processing.
+
 ## Related Patterns
 
 - **P11** — Credential scope issues are another expression engine limitation

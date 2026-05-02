@@ -46,6 +46,24 @@ If 2+ checks are "yes," this pattern likely matches.
 - Prefer header-based authentication over body-based when the API supports both
 - Document which platform contexts support interpolation
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `request_builder.build_body` — inspect the request body object just before it is serialized and sent
+- `credential_resolver.resolve` — confirm whether the resolver is even called for body fields
+
+**Watch Expressions:**
+- `request.body['apiKey']` (or equivalent key) — is the value the literal string `$credentials.apiKey` or the resolved secret?
+- `request.headers['Authorization']` — compare: does the header resolve correctly while the body does not?
+
+**Isolation Technique:**
+Set a breakpoint on request send. Print the full serialized body. If the body contains a `$` or `{{` literal, the resolver was never invoked for that field. Then check whether the same expression in a header field resolves correctly — asymmetry confirms scope limitation.
+
+**Expected Evidence:**
+Confirms: body field value equals the raw template string (e.g., `"$credentials.apiKey"`). Header field for the same credential resolves to the actual key. Rules out: body field contains the real secret value.
+
 ## Related Patterns
 
 - **P14** — Expression evaluation requiring a prefix is a related platform quirk

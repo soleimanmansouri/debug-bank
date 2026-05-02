@@ -48,6 +48,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Make terminal tool calls (end, transfer, hang up) idempotent
 - Test the full lifecycle: greeting → conversation → farewell → disconnect
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `end_conversation()` tool handler — Check whether `pipeline.disconnect()` or equivalent is called within this function on the first invocation
+- `on_generation_complete()` or `_on_llm_response()` — Count how many times this fires after the farewell utterance
+
+**Watch Expressions:**
+- `pipeline.is_connected` — Should become `False` immediately after the farewell; if still `True` the stop path is missing
+- `call(end_conversation, invocation_count)` — Increments past 1 confirms the idempotency guard is absent
+- `timeout_ms` / `debounce_ms` — Values longer than the farewell utterance duration enable the loop
+
+**Isolation Technique:**
+Set a counter at the `on_generation_complete` breakpoint. If it fires more than once after the end-of-conversation event without a `disconnect()` call in between, the missing stop signal is confirmed.
+
+**Expected Evidence:**
+Confirms pattern: `on_generation_complete` fires 2+ times after farewell with `pipeline.is_connected == True` throughout. Rules it out: `disconnect()` is called inside the first `end_conversation()` invocation and generation does not fire again.
+
 ## Related Patterns
 
 - **P17** — Context being spoken is a related "model speaks too much" issue

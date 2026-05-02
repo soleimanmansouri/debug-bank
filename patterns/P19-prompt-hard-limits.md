@@ -59,6 +59,24 @@ This rule exists because prompt fixes for generation-layer issues have a near-ze
 - Use prompts for content and personality, not behavioral guardrails
 - Test constraints with adversarial inputs before assuming they work
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `_build_system_prompt()` or `get_system_message()` — Verify the constraint text is actually present in the assembled prompt string before it reaches the model
+- `post_process_output()` or `on_text_delta()` — Break here to check whether any output filter/guard exists for the unwanted phrase or behavior
+
+**Watch Expressions:**
+- `system_prompt` (the final assembled string) — Search for the constraint keyword; its absence here means a prompt assembly bug, not a generation-layer limit
+- `output_filters` or `guards` list — An empty list confirms there is no code-level enforcement
+
+**Isolation Technique:**
+Confirm the constraint IS present in the final prompt string, then let generation proceed. If the unwanted behavior appears despite the constraint being in the prompt, this is a generation-layer issue — switch to a code-level filter.
+
+**Expected Evidence:**
+Confirms pattern: constraint keyword found in `system_prompt`, unwanted behavior still present in output. Rules it out: constraint missing from `system_prompt` — that's a prompt assembly bug (P04), not a generation-layer limit.
+
 ## Related Patterns
 
 - **P17** — Context being spoken is often the specific issue prompt engineering can't fix

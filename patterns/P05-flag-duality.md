@@ -46,6 +46,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Document which contexts override the global default
 - Test edge contexts (entry points, exit points, error paths) explicitly
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- Flag read site in the working context (e.g., entry node `handle()` where `auto_respond` is checked) — Record flag value and current node/route identifier
+- Flag read site in the broken context — Break at the same flag access in the silently-failing path
+
+**Watch Expressions:**
+- `self.auto_respond` — Should differ between entry nodes and regular nodes; if identical, the pattern is confirmed
+- `current_node.node_type` or `request.path` — The context identifier that should determine which flag value applies
+- `config.auto_respond` — The global setting; check if it is the only source, or if per-context overrides exist
+
+**Isolation Technique:**
+Break at the flag read in both contexts in the same debugging session. Compare the value and its source. If both read the same global value and one context needs a different value, the pattern is confirmed. Temporarily hardcode the correct value in the broken context and verify behavior improves — do not ship the hardcode, use it only to confirm the hypothesis.
+
+**Expected Evidence:**
+Confirms pattern: `auto_respond` is `False` in an entry node that is producing dead air, and no per-node override exists anywhere in the call path. Rules it out: the broken context has its own flag assignment that overrides the global — points to a logic bug instead.
+
 ## Related Patterns
 
 - **P07** — Stale config can mask the real value a context is using

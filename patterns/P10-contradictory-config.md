@@ -47,6 +47,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Add validation that cross-checks selector and parameter compatibility
 - Use typed config objects that enforce provider-specific field sets
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `config.load` / config deserialization entry point — inspect the full config object immediately after it is parsed
+- `provider_init` / the constructor that uses the selector field to initialize the backend
+
+**Watch Expressions:**
+- `config.tts_provider` (or equivalent selector) — what system is selected?
+- `config.voice_id` / `config.connection_string` — do these values belong to the selected provider?
+- `type(config.voice_id)` — a UUID vs a name format can reveal which provider the value came from
+
+**Isolation Technique:**
+At the config load breakpoint, dump the selector field and all sibling fields side-by-side. Cross-reference the voice ID / connection string format against known provider patterns (e.g., ElevenLabs IDs are 20-char alphanumeric; MongoDB URIs start with `mongodb://`).
+
+**Expected Evidence:**
+Confirms: selector says provider A, but a sibling field contains an ID/URL that only exists in provider B. Rules out: all sibling fields are valid for the selected provider.
+
 ## Related Patterns
 
 - **P07** — Stale config can leave behind parameters from a previous provider

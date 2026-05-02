@@ -39,6 +39,25 @@ If all 3 checks are "yes," this pattern likely matches.
 - Test multi-output nodes with minimal examples before building complex logic
 - Prefer single-output nodes with downstream routing for reliability
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `node_runner.validate_output` — the internal function that checks return value structure before routing to outputs
+- `code_node.execute` — capture the exact return value from user code before the platform processes it
+
+**Watch Expressions:**
+- `return_value` — is it `[[...], [...], [...]]` (nested array) or `[..., ..., ...]` (flat)?
+- `type(return_value[0])` — is the first element an array of items or a single item?
+- `node.numberOutputs` and `node.runOnceForAllItems` — confirm both flags are set
+
+**Isolation Technique:**
+At the validate_output breakpoint, compare `return_value` structure against what the validator's expected schema says. Reduce to a minimal repro: two outputs, one item each, simplest possible return shape. If the validator still rejects it, the bug is in the platform's batch+multi-output interaction, not user code structure.
+
+**Expected Evidence:**
+Confirms: `return_value` matches documented format but validator throws "invalid output format" with `runOnceForAllItems=true` and `numberOutputs > 1`. Rules out: validator accepts the return when `runOnceForAllItems=false` with the same structure.
+
 ## Related Patterns
 
 - **P16** — Binary data handling is another platform-specific data format issue

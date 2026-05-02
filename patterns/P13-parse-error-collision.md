@@ -46,6 +46,25 @@ If check 3 is "no" and either 1 or 2 is "yes," this pattern likely matches.
 - Use schema validation on responses before extraction
 - Test extraction against both success AND error responses
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `extract_value` / the regex or XPath function that pulls data from the response — inspect `raw_response` before the pattern is applied
+- Entry point of the success handler — confirm that an HTTP status check was passed before reaching this code
+
+**Watch Expressions:**
+- `response.status_code` — is it 2xx, or an error code like 404/500?
+- `raw_response[:500]` — does the content look like an error page or fault XML, not a success payload?
+- `match.group(0)` — is the extracted value a short numeric string that matches an error code format?
+
+**Isolation Technique:**
+At the extraction breakpoint, check `response.status_code` before examining the match. If the status is an error code and extraction still proceeds, there is no pre-extraction error guard. Then check whether the regex matches the error message text — run `re.findall(pattern, error_response_sample)` in the REPL to confirm.
+
+**Expected Evidence:**
+Confirms: `response.status_code` is 4xx/5xx and the extracted value equals an error code or error message fragment. Rules out: status is 2xx and extracted value matches expected data format (e.g., a full UUID, a dollar-prefixed price).
+
 ## Related Patterns
 
 - **P08** — Config chain gaps can cause fallback to error-like responses

@@ -47,6 +47,24 @@ If 2+ checks are "yes," this pattern likely matches.
 - Use declarative system instructions, not imperative examples
 - Test voice output for unintended verbatim repetition of prompt text
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `build_messages()` or equivalent context assembly function — Inspect the `messages` list before it's sent to the model; look for any `{"role": "assistant", ...}` entries that were seeded rather than generated
+- `on_audio_output()` or `_handle_tts_frame()` — Break here to see which message text triggered the speech frame
+
+**Watch Expressions:**
+- `messages[-1]["content"]` — Does the spoken text match this or an earlier seeded entry?
+- `[m for m in messages if m["role"] == "assistant"]` — Lists all assistant turns; any entry here before the first user message is a seed
+
+**Isolation Technique:**
+Clear the messages list (or replace seeded entries with empty strings) at the breakpoint, then resume. If the unwanted speech disappears, the seeded message is confirmed as the source.
+
+**Expected Evidence:**
+Confirms pattern: spoken audio text matches a seeded assistant message in `messages`. Rules it out: all assistant messages were generated in-session and `messages[0]["role"] == "user"`.
+
 ## Related Patterns
 
 - **P04** — LLM copying examples is the text-only version of this pattern

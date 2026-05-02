@@ -46,6 +46,24 @@ If check 1 is "yes" and check 3 is "no," this pattern likely matches.
 - Periodically audit config files for values that are never referenced in code
 - Use a single config loading mechanism, not multiple overlapping ones
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- Every config read call for the affected key (e.g., `settings.get("greeting")`, `os.environ.get("DATABASE_URL")`, `db.query("SELECT greeting FROM project_settings")`) — Whichever fires first wins
+
+**Watch Expressions:**
+- `config_value` at the point it is assigned — See the actual value the runtime uses, not what you expect
+- `inspect.stack()` — At the config read breakpoint, identify which loader/module is providing the value
+- `config.py:GREETING` — If this is never hit during a full request cycle, it is dead code
+
+**Isolation Technique:**
+Set breakpoints on ALL candidate config read sites for the same key. Run one full request. Only the breakpoint that fires is the active source. If `config.py` is never hit but `project_settings.greeting` DB read fires, the file-based constant is confirmed dead. Delete it and verify behavior is unchanged.
+
+**Expected Evidence:**
+Confirms pattern: the breakpoint on `config.py` never triggers during a real request, while a DB or environment read breakpoint does trigger and returns the live value. Rules it out: the `config.py` breakpoint fires — the constant is active, meaning the problem is a different value there, not a dead source.
+
 ## Related Patterns
 
 - **P08** — Config chain gaps are about missing links; stale config is about dead links

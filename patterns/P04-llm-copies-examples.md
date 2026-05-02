@@ -47,6 +47,24 @@ If 2+ checks are "yes," this pattern likely matches.
 - Describe desired behavior abstractly: "respond warmly" not "say 'I'd be happy to help'"
 - When documenting tools, describe WHEN to use them, not HOW they look when called
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- LLM response handler (e.g., `on_llm_response` or wherever the raw completion string is first available) — Inspect the generated text before any post-processing
+
+**Watch Expressions:**
+- `response.content` — The raw LLM output; check if it contains exact substrings from the system prompt
+- `system_prompt` — Have this in scope at the response handler so you can do a direct substring check
+- `any(ex in response.content for ex in extracted_examples)` — Evaluates to `True` if the LLM is copying
+
+**Isolation Technique:**
+At the response breakpoint, run `system_prompt.find(response.content[:40])` in the debugger REPL. If the first 40 characters of the response appear verbatim in the system prompt, the pattern is confirmed. Then locate the exact example text in the prompt and check whether it is framed as a description or as copyable text.
+
+**Expected Evidence:**
+Confirms pattern: `response.content[:N]` is a substring of `system_prompt`, and the matched location is an example block (not a constraint or rule). Rules it out: the response text does not appear anywhere in the system prompt — indicates a different cause such as training bias or a fine-tune artifact.
+
 ## Related Patterns
 
 - **P17** — Models speaking context history is a related issue (text in context → spoken output)

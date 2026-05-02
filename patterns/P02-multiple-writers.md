@@ -47,6 +47,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Use database constraints (unique keys, check constraints) to catch duplicate writes
 - Log write sources with metadata to detect multi-writer situations early
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `context_manager.save` (or equivalent write method) — Conditional: `if field == "transcript"`
+- `observer.save_transcript_turn` — Break on every call to capture the full call stack at write time
+
+**Watch Expressions:**
+- `db.transcript` (or `context.messages`) — Snapshot the value before and after each write
+- `len(observer.transcript_turns)` — Track turn count across writes to detect overwrite vs. append behavior
+- `inspect.stack()` — At each write breakpoint, capture the full call stack to identify which code path triggered it
+
+**Isolation Technique:**
+Set a conditional breakpoint on the write target and log `id(caller)` or the stack frame source file at each hit. If two distinct stack frames both write to the same field, the pattern is confirmed. Temporarily disable one writer and verify the data is correct — then re-enable to confirm the overwrite.
+
+**Expected Evidence:**
+Confirms pattern: two separate stack traces both reach the same write target within one request/event cycle, and the second write's value does not include data from the first. Rules it out: only one call stack path ever reaches the write target.
+
 ## Related Patterns
 
 - **P09** — Auto-apply pipelines are a specific case of unwanted writes

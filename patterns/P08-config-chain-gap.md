@@ -47,6 +47,24 @@ If 2+ checks are "yes," this pattern likely matches.
 - Log when fallback occurs — "Using YAML fallback for department X, DB entry missing"
 - Validate that the primary source is populated for all expected keys
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- Each level of the fallback chain resolver (e.g., `resolve_from_db()`, `resolve_from_yaml()`, `resolve_from_hardcoded()`) — Break at each and record the return value before fallback logic runs
+
+**Watch Expressions:**
+- `db_result` — Should be non-None for the affected department/key; if `None` or empty, fallback will trigger
+- `yaml_config.get("transfer_number")` — The stale value the system falls back to when DB is empty
+- `fallback_level` — If the resolver tracks which level provided the value, this tells you exactly where the chain broke
+
+**Isolation Technique:**
+Break at the top of the fallback chain resolver. Step through each level in order. The first level that returns `None` or an empty value is the broken link. Confirm by manually querying the DB (or reading the file) for that exact key in the debugger REPL — if it is empty, populate it and re-run to verify the chain resolves at the correct level.
+
+**Expected Evidence:**
+Confirms pattern: `resolve_from_db()` returns `None` for the affected key, execution falls through to `resolve_from_yaml()`, and the YAML value is outdated. Rules it out: `resolve_from_db()` returns a value — the bug is in the value itself (wrong data) rather than a missing chain link, which points to P07 instead.
+
 ## Related Patterns
 
 - **P07** — Stale config is a dead source; chain gap is a missing source

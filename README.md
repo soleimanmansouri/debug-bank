@@ -7,11 +7,11 @@
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-compatible-blue)](https://github.com/google-gemini/gemini-cli)
 [![Cursor](https://img.shields.io/badge/Cursor-compatible-blue)](https://cursor.sh)
 
-**Give your AI coding agent a memory that learns from failure.**
+**Give your AI coding agent a memory that learns from failure — and a debugger that knows where to look.**
 
-AI agents repeat the same mistakes because they forget everything between sessions. Debug Bank fixes this — a pattern-first debugging memory that checks "have I seen this before?" in 30 seconds instead of re-investigating for hours, and catches known failure patterns before they ship.
+AI agents repeat the same mistakes because they forget everything between sessions. Debug Bank fixes this — a pattern-first debugging system that checks "have I seen this before?" in 30 seconds, provides targeted breakpoints for runtime debuggers, and catches known failure patterns before they ship.
 
-> **One-liner:** Drop a `CLAUDE.md` into your project. Your agent never makes the same debugging mistake twice.
+> **One-liner:** Drop a `CLAUDE.md` into your project. Your agent never makes the same debugging mistake twice — and when it uses a debugger, it knows exactly which breakpoints to set.
 
 ```bash
 curl -O https://raw.githubusercontent.com/soleimanmansouri/debug-bank/main/CLAUDE.md
@@ -60,14 +60,26 @@ graph TD
     style SHIP fill:#95e77e,stroke:#333,color:#000
 ```
 
-Three layers that compound over time:
+Three layers that compound over time — and a runtime bridge that makes debuggers smart:
 
 | Layer | What It Does | How It Helps |
 |-------|-------------|--------------|
-| **Pattern Bank** (P01-P21+) | Generalized root cause patterns | 30-second match before hours of investigation |
+| **Pattern Bank** (P01-P22) | Generalized root cause patterns with debugger strategies | 30-second match + targeted breakpoints |
+| **Symptom Classifier** | Keyword-driven symptom → pattern lookup | Structured hypothesis ranking before touching code |
+| **Debug Subagent Protocol** | Pattern-guided runtime debugging via PDB/JDB | 2-4 targeted breakpoints instead of 15+ blind ones |
 | **Domain Catalogs** | Bugs organized by subsystem | Search by symptom type, not by date |
 | **Feedback Rules** | User corrections → enforceable rules | Agent adapts to YOUR working style |
 | **Pre-Deploy Scanner** | Scans git diff against pattern keywords before shipping | Catches known failure classes before they reach production |
+
+### The Layer Model
+
+```
+Layer 3: KNOWLEDGE     ← Debug Bank (patterns, protocol, memory, classifier)
+Layer 2: RUNTIME       ← Debug Subagent Protocol (breakpoints, variables, call stacks)
+Layer 1: STATIC        ← Most agents today (grep, read, guess, retry)
+```
+
+Most coding agents are stuck at Layer 1. Tools like [Debug2Fix](https://arxiv.org/abs/2602.18571) move them to Layer 2 — but their debug subagent starts from scratch every time. Debug Bank bridges Layer 2 and Layer 3: when your agent matches a pattern, it gets **targeted breakpoints and watch expressions** from the pattern's debugger strategy, not a blind stepping session. The result: fewer steps to diagnosis, higher-quality fixes from canonical solutions, and graceful fallback to exploratory mode for novel bugs.
 
 ## The Problem This Solves
 
@@ -161,9 +173,40 @@ Exit code: 1
 
 No flagged patterns means a clean scan — the script exits 0 and the deploy proceeds.
 
+## Symptom Classifier — Step 0
+
+Before the 7-step protocol begins, run the symptom through the [Symptom Classifier](classifier/symptom-classifier.md). It maps keywords to pattern IDs with confidence scoring:
+
+```
+INPUT:  "The greeting plays twice on every call"
+OUTPUT: Primary:   P03 (Observer Multiplier) — HIGH — 3/3 checklist
+        Secondary: P01 (Wrapper Defaults)    — MEDIUM — 1/3 checklist
+        → Debugger: break on observer callback, watch frame.id hit count
+```
+
+The classifier covers 25+ symptom signals, 5 compound pattern triggers, and outputs targeted breakpoints when a pattern's debugger strategy is available. See the full keyword index and usage protocol in [`classifier/symptom-classifier.md`](classifier/symptom-classifier.md).
+
+## Debug Subagent Protocol — Pattern-Guided Runtime Debugging
+
+When your agent has access to a runtime debugger (PDB, JDB), the [Debug Subagent Protocol](protocol/debug-subagent.md) defines how a main agent delegates targeted investigations to a specialized debug subagent.
+
+Unlike brute-force approaches like [Debug2Fix](https://arxiv.org/abs/2602.18571) (which explore from scratch), this protocol feeds the subagent pattern-specific breakpoints:
+
+| Approach | Starting Knowledge | Avg Breakpoints | Steps to Diagnosis |
+|---|---|---|---|
+| Debug2Fix (brute-force) | None | 8-15 | 15-25 |
+| Debug Bank v3 (pattern-guided) | Pattern match + debugger strategy | 2-4 | 5-12 |
+
+Three delegation modes based on classifier confidence:
+- **High confidence:** "Confirm P02. Set breakpoints on `context_manager.save` and `observer.save_transcript_turn`. Watch `inspect.stack()` at each write."
+- **Low confidence:** "Investigate whether P08 applies. Break at each config resolution level, report which source provides the value."
+- **No match:** Exploratory mode — inspect locals at error site, walk the call stack.
+
+Full spec with typed tool signatures, evidence format, and integration points: [`protocol/debug-subagent.md`](protocol/debug-subagent.md).
+
 ## 22 Battle-Tested Patterns
 
-Each pattern has: description, 30-second check list, real-world examples, fix strategy, prevention guide.
+Each pattern has: description, 30-second checklist, real-world examples, fix strategy, prevention guide, and **debugger strategy** (targeted breakpoints, watch expressions, isolation technique for PDB/JDB).
 
 ### Code Structure
 | ID | Pattern | Quick Check |
@@ -285,12 +328,15 @@ debug-bank/
 ├── AGENTS.md                          # Cross-agent (Codex, Gemini CLI, Cursor)
 ├── protocol/
 │   ├── debug-trajectory.md            # The 7-step protocol
+│   ├── debug-subagent.md              # v3: Pattern-guided debug subagent spec
 │   ├── 3-exchange-rule.md             # When to stop and re-plan
 │   ├── difficulty-tiers.md            # L1-L4 scale selector
 │   └── feedback-capture.md            # Corrections → persistent rules
+├── classifier/
+│   └── symptom-classifier.md          # v3: Symptom → pattern matcher with confidence scoring
 ├── patterns/
-│   ├── P01 through P22               # 22 battle-tested patterns
-│   └── TEMPLATE.md                    # Add your own
+│   ├── P01 through P22               # 22 patterns, each with debugger strategy
+│   └── TEMPLATE.md                    # Add your own (includes debugger_strategy section)
 ├── compositions/                      # Common pattern combinations
 │   ├── C01 through C05               # 5 documented compositions
 │   └── README.md
@@ -334,11 +380,13 @@ debug-bank/
 
 ## Research Foundation
 
-| Research | Contribution | Impact |
-|----------|-------------|--------|
-| [Google ReasoningBank](https://arxiv.org/abs/2504.09762) (2025) | Distilling reasoning from successes AND failures | +8.3% WebArena, +4.6% SWE-Bench |
-| [AgentDebug](https://arxiv.org/abs/2509.25370) (ICLR 2026) | Agent Error Taxonomy across 5 failure categories | +24% all-correct accuracy |
-| Trajectory-based learning | Searchable, pattern-linked debug entries | Prevents repeat investigations |
+| Research | Contribution | How Debug Bank Uses It |
+|----------|-------------|----------------------|
+| [Google ReasoningBank](https://arxiv.org/abs/2504.09762) (2025) | Distilling reasoning from failures yields +8.3% WebArena, +4.6% SWE-Bench | Pattern bank + domain catalogs = production implementation of this concept |
+| [AgentDebug](https://arxiv.org/abs/2509.25370) (ICLR 2026) | Agent Error Taxonomy across 5 failure categories, +24% all-correct accuracy | P01-P22 categories map to and extend the taxonomy |
+| [Debug2Fix](https://arxiv.org/abs/2602.18571) (2026) | Subagent debugger architecture, +12-22% fix rate via PDB/JDB | Debug subagent protocol adds pattern-guided breakpoints to this architecture |
+| [debug-gym](https://arxiv.org/abs/2503.21557) (2025) | Text-based interactive debugging environment for LLM agents | Debugger strategy fields designed to be compatible with debug-gym tool interface |
+| Trajectory-based learning | Searchable, pattern-linked debug entries | Every recorded trajectory feeds the classifier and grows the pattern bank |
 
 ## Contributing
 

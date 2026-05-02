@@ -46,6 +46,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Always deduplicate by event ID as a default
 - Prefer end-of-pipeline hooks over per-stage hooks
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- Observer callback entry point (e.g., `on_frame_received`) — Hit count mode: count how many times it fires per unique frame
+- Pipeline stage `process(frame)` — Break here to see which processor is currently executing when the observer fires
+
+**Watch Expressions:**
+- `frame.id` — Check if the same frame ID appears on consecutive breakpoint hits
+- `len(pipeline.processors)` — Confirm N matches the observed multiplier
+- `self.__class__.__name__` — At the observer breakpoint, see which processor instance triggered the callback
+
+**Isolation Technique:**
+Add a hit counter at the observer breakpoint keyed by `frame.id`. After processing one frame end-to-end, check if the counter equals 1 (correct) or N (multiplier confirmed). To isolate which processor triggers it, temporarily reduce the pipeline to a single processor and verify the observer fires exactly once.
+
+**Expected Evidence:**
+Confirms pattern: `frame.id` is identical across N consecutive observer hits, and N equals `len(pipeline.processors)`. Rules it out: each observer hit has a distinct `frame.id`, meaning the observer fires once per unique frame.
+
 ## Related Patterns
 
 - **P01** — Wrapper defaults can accidentally register multiple observers

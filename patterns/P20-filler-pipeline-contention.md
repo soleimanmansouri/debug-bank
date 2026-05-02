@@ -48,6 +48,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Code review check: search for `queue_frame(CancelFrame` or `queue_frame(EndFrame` and verify no filler is active at that point
 - Add assertions in test/debug builds that no background frame source is active when control frames are queued
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `task.queue_frame()` with a conditional breakpoint: `type(frame).__name__ in ("CancelFrame", "EndFrame")` — Inspect queue depth and filler state at the exact moment the control frame is enqueued
+- `filler_audio.pump()` or `background_audio._send_frame()` — Break here during teardown to confirm filler is still actively pushing frames
+
+**Watch Expressions:**
+- `task._queue.qsize()` — A value of 50+ when a CancelFrame is enqueued confirms saturation
+- `filler_audio.is_active` — Should be `False` before any CancelFrame or EndFrame is queued; `True` here confirms the bug
+- `[type(f).__name__ for f in list(task._queue.queue)]` — Reveals frame ordering; many `AudioRawFrame` entries ahead of `CancelFrame` confirms contention
+
+**Isolation Technique:**
+Set a breakpoint at `filler_audio.stop()`. If execution never reaches it before `queue_frame(CancelFrame)` is called, the stop-before-teardown ordering is missing.
+
+**Expected Evidence:**
+Confirms pattern: `filler_audio.is_active == True` when CancelFrame is queued, queue depth 50+. Rules it out: `is_active == False` and queue depth near zero at the CancelFrame enqueue point.
+
 ## Related Patterns
 
 - **P02** — Multiple write sources to the same pipeline queue is a generalized version of this

@@ -46,6 +46,25 @@ If 2+ checks are "yes," this pattern likely matches.
 - Audit wrappers after dependency updates that change parent defaults
 - Prefer composition over inheritance — composition doesn't inherit defaults
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `CachingServiceWrapper.__init__` — Pause immediately after `super().__init__()` to inspect inherited state
+- `BaseService.__init__` — Break here to see exactly what defaults the parent sets before the wrapper can override
+
+**Watch Expressions:**
+- `self.auto_push_output` — Should be `False` for a caching wrapper; if `True`, duplication will occur
+- `self.debug` — Should match the wrapper's intended value, not the parent's updated default
+- `self.__class__.__mro__` — Confirm the inheritance chain you're actually traversing
+
+**Isolation Technique:**
+Step through `super().__init__()` and record every `self.*` attribute set. Then check which of those were NOT explicitly re-set by the wrapper after the `super()` call. Any attribute left at the parent default is a candidate.
+
+**Expected Evidence:**
+Confirms pattern: `self.auto_push_output is True` immediately after `super().__init__()` and no subsequent assignment overrides it. Rules it out: wrapper explicitly sets the parameter in its own `__init__` body after `super()`.
+
 ## Related Patterns
 
 - **P07** — Stale config can look like a wrapper default issue

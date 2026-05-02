@@ -46,6 +46,22 @@ How to avoid this pattern in new code:
 - Coding practice or review check
 - Automated check if possible
 
+## Debugger Strategy
+
+When an agent has access to a runtime debugger (PDB, JDB, GDB, or equivalent), use these targeted investigation steps instead of blind stepping.
+
+**Breakpoints:**
+- `function_or_method_name` — Why this breakpoint matters
+
+**Watch Expressions:**
+- `expression` — What to look for in the value
+
+**Isolation Technique:**
+One-line description of how to use the debugger to confirm or reject this pattern.
+
+**Expected Evidence:**
+What the debugger output looks like when this pattern is the root cause vs. when it isn't.
+
 ## Related Patterns
 
 - **PXX** — Similar pattern, different context
