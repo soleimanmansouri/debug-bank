@@ -32,6 +32,7 @@ Match keywords from the symptom description to pattern IDs. Primary = most likel
 | Signal Keywords | Primary Pattern | Secondary Patterns |
 |---|---|---|
 | duplicate output, sent twice, N copies, message multiplied | P03 | P01, P20 |
+| duplicate output exactly twice, response spoken twice, double output | P01 | P03 |
 | stale data, old value, cached but wrong, outdated response | P07 | P08, P02 |
 | works here breaks there, context-dependent, env-specific | P05 | P10, P21 |
 | config change no effect, setting ignored, reload has no impact | P07 | P08, P10 |
