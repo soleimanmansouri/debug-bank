@@ -1,0 +1,43 @@
+scenario: S03
+name: Silent Schema Drift
+
+root_cause: >
+  Three problems compose. (1) Service B caches the table schema in Redis with a
+  1-hour TTL. After Service A runs a migration adding new columns, Service B's
+  cache does not reflect them — the dynamic column mapper silently drops fields
+  it does not know about, so new features fail without errors. (2) Service B has
+  two cache refresh paths: TTL expiry (correct, picks up new columns via a new
+  DB connection) and a notify-triggered refresh (buggy, reuses a pooled
+  connection that predates the migration and returns the old column list). The
+  notify path runs on every admin write — far more frequently than TTL expiry —
+  and overwrites the correct cache with stale data within minutes. (3) The
+  dynamic mapper treats unknown fields as ignorable, producing a 100% success
+  rate while silently omitting priority filtering and throttling.
+
+patterns:
+  - P07: "Stale Config — schema cache does not reflect actual DB schema"
+  - P02: "Multiple Writers — two refresh paths write to same cache key; stale one wins"
+  - P13: "Parse Matches Errors as Success — unknown columns silently dropped"
+
+fix:
+  description: >
+    Immediate: restart Service B so all connection pool entries are fresh —
+    both refresh paths will return the correct 10-column schema.
+    Proper: remove the notify-triggered cache refresh (Path B). Add explicit
+    cache key deletion to the migration script so the next read after a
+    migration always gets a fresh connection. Add a startup assertion that
+    compares cached column count to live information_schema.
+  approach: "remove notify refresh path, explicit cache invalidation on migration"
+  alternative: >
+    Force a new DB connection in Path B by disposing the SQLAlchemy engine
+    connection pool before querying information_schema.
+
+verification:
+  - "GET /schema from Service B shows all 10 columns immediately after migration"
+  - "Priority filtering and throttling apply correctly to all notifications"
+  - "Redis MONITOR shows only one writer for schema:notifications after fix"
+
+blast_radius:
+  - "All notifications sent during the drift window were unfiltered by priority"
+  - "Throttling was not applied — burst notifications may have hit provider rate limits"
+  - "Other tables using the same dynamic schema cache pattern are affected"

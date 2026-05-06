@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifications
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d notifications"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  service-a:
+    build: ./services/service-a
+    environment:
+      DATABASE_URL: postgresql://app:secret@postgres:5432/notifications
+    ports:
+      - "8020:8020"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8020/health')\""]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  service-b:
+    build: ./services/service-b
+    environment:
+      DATABASE_URL: postgresql://app:secret@postgres:5432/notifications
+      REDIS_URL: redis://redis:6379
+      # Schema cache TTL in seconds (1 hour in production, shorter here for demo)
+      SCHEMA_CACHE_TTL_S: "3600"
+    ports:
+      - "8021:8021"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-a:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8021/health')\""]
+      interval: 3s
+      timeout: 5s
+      retries: 15

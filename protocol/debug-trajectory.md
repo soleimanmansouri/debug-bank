@@ -25,6 +25,8 @@ Before investigating, scan the pattern bank (P01-P19+) for a matching root cause
 
 **Output:** "Matches P08 (Config Chain Gap)" or "No pattern match — proceeding to reproduce."
 
+If no pattern matches and the domain catalog search is also empty, proceed to Step 2 OR invoke the auto-instrumentation fallback (`protocol/auto-instrumentation.md`) for hypothesis-driven debugging with runtime evidence capture. The fallback instruments the code with hypothesis-tagged logging, captures evidence, and auto-extracts a new pattern candidate after fixing.
+
 **Why this step exists:** Most bugs in a mature codebase match a known pattern. Checking takes 30 seconds. Re-investigating takes hours.
 
 ### Step 2: Reproduce

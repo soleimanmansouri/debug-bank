@@ -43,6 +43,14 @@ Instead:
 - **Never** assume you understand the bug from the description alone — always reproduce first
 - **Always** check if 2+ symptoms share one root cause before filing separate fixes
 
+## Auto-Instrumentation Fallback
+
+When no pattern matches and the domain catalog is empty, do not guess. Use the auto-instrumentation fallback:
+
+- **Protocol:** `protocol/auto-instrumentation.md` — 6-step process: generate hypotheses, instrument code with `#region DEBUG-Hn` blocks, reproduce, analyze logs, fix, extract pattern candidate
+- **Skill:** `skills/auto-instrument/SKILL.md` — step-by-step templates for Python, JavaScript, TypeScript, and Go
+- Every successful fix using this fallback **must** generate a pattern candidate (stored in `debug-memory/candidates/`) so the pattern bank grows from real bugs
+
 ## Feedback Capture
 
 When a user corrects your approach, create a feedback rule:

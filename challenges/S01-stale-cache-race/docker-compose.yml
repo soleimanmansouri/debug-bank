@@ -1,0 +1,85 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d orders"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+
+  order-service:
+    build: ./services/order-service
+    environment:
+      DATABASE_URL: postgresql://app:secret@postgres:5432/orders
+      REPLICA_LAG_MS: "150"
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  cache-invalidator:
+    build: ./services/cache-invalidator
+    environment:
+      REDIS_URL: redis:6379
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+
+  api-gateway:
+    build: ./services/api-gateway
+    environment:
+      REDIS_URL: redis://redis:6379
+      ORDER_SERVICE_URL: http://order-service:8001
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
+      interval: 3s
+      timeout: 5s
+      retries: 15

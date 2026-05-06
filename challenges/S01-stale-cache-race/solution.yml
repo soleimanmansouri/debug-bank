@@ -1,0 +1,35 @@
+scenario: S01
+name: Stale Cache Race
+
+root_cause: >
+  Race condition: the API Gateway read-through cache re-fills Redis with stale
+  data from the Order Service replica AFTER the Cache Invalidator has already
+  deleted the key. The Order Service uses a read replica for GET requests; replica
+  lag spikes to 50-200ms under write load. A request that arrives during this
+  window reads old data from the replica and writes it back into Redis via the
+  read-through path, occurring after the invalidation has already run.
+
+patterns:
+  - P02: "Multiple Writers — read-through fill and Cache Invalidator both write to the same Redis key"
+  - P08: "Config Chain Gap — Order Service GET path silently falls through to replica, not the primary"
+
+fix:
+  description: >
+    Add a version stamp (updated_at timestamp) to the Order Service response.
+    The API Gateway read-through fill does a conditional write: only SET the Redis
+    key if the returned version is >= the currently cached version. This prevents
+    a slower, stale read-through fill from overwriting a more recent invalidation.
+  approach: "version stamp conditional write"
+  alternative: >
+    Add a short write-lock. After the Cache Invalidator deletes a key, it also sets
+    a 2-second lock key (price:{id}:lock). The read-through path checks for the lock
+    before writing to Redis.
+
+verification:
+  - "Run 100 concurrent requests immediately after a price update — zero stale reads"
+  - "Monitor read-through fill skips (high skip rate = persistent replica lag)"
+
+blast_radius:
+  - "Inventory counts use the same read-through pattern and replica"
+  - "Order totals in the staleness window may use wrong prices"
+  - "CDN/browser caches downstream may cache stale API responses"

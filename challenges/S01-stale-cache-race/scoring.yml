@@ -1,0 +1,17 @@
+scenario: S01
+name: Stale Cache Race
+patterns: [P02, P08]
+composition: C01
+expected_steps: 8
+red_herrings:
+  - "event bus delivery delay"
+  - "Redis TTL not expiring"
+  - "Order Service returning stale data directly"
+root_cause: "Read-through cache re-fills stale data from replica after invalidation"
+fix_keywords:
+  - "version stamp"
+  - "conditional write"
+  - "write lock"
+  - "read from primary"
+  - "version >="
+  - "lock key"

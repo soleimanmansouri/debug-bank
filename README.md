@@ -60,26 +60,30 @@ graph TD
     style SHIP fill:#95e77e,stroke:#333,color:#000
 ```
 
-Three layers that compound over time — and a runtime bridge that makes debuggers smart:
+Four layers that compound over time:
 
 | Layer | What It Does | How It Helps |
 |-------|-------------|--------------|
 | **Pattern Bank** (P01-P22) | Generalized root cause patterns with debugger strategies | 30-second match + targeted breakpoints |
 | **Symptom Classifier** | Keyword-driven symptom → pattern lookup | Structured hypothesis ranking before touching code |
+| **MCP Server** | Programmatic access to patterns, classifier, trajectory memory | Any MCP-compatible agent gets debug tools natively |
 | **Debug Subagent Protocol** | Pattern-guided runtime debugging via PDB/JDB | 2-4 targeted breakpoints instead of 15+ blind ones |
+| **Auto-Instrumentation** | Hypothesis-driven logging when no pattern matches | Novel bugs generate pattern candidates automatically |
+| **Debug-Bench** | Docker scenarios with trajectory scoring | First benchmark measuring debugging QUALITY, not just pass/fail |
 | **Domain Catalogs** | Bugs organized by subsystem | Search by symptom type, not by date |
 | **Feedback Rules** | User corrections → enforceable rules | Agent adapts to YOUR working style |
 | **Pre-Deploy Scanner** | Scans git diff against pattern keywords before shipping | Catches known failure classes before they reach production |
 
-### The Layer Model
+### The 4-Layer Model
 
 ```
-Layer 3: KNOWLEDGE     ← Debug Bank (patterns, protocol, memory, classifier)
+Layer 4: ORCHESTRATION ← MCP Server (tools, memory, scoring) + Debug-Bench
+Layer 3: KNOWLEDGE     ← Debug Bank (patterns, protocol, classifier, auto-instrumentation)
 Layer 2: RUNTIME       ← Debug Subagent Protocol (breakpoints, variables, call stacks)
 Layer 1: STATIC        ← Most agents today (grep, read, guess, retry)
 ```
 
-Most coding agents are stuck at Layer 1. Tools like [Debug2Fix](https://arxiv.org/abs/2602.18571) move them to Layer 2 — but their debug subagent starts from scratch every time. Debug Bank bridges Layer 2 and Layer 3: when your agent matches a pattern, it gets **targeted breakpoints and watch expressions** from the pattern's debugger strategy, not a blind stepping session. The result: fewer steps to diagnosis, higher-quality fixes from canonical solutions, and graceful fallback to exploratory mode for novel bugs.
+Most coding agents are stuck at Layer 1. Tools like [Debug2Fix](https://arxiv.org/abs/2602.18571) move them to Layer 2 — but their debug subagent starts from scratch every time. Debug Bank bridges all four layers: when your agent matches a pattern, it gets **targeted breakpoints and watch expressions** from the pattern's debugger strategy. When no pattern matches, the **auto-instrumentation fallback** generates hypothesis-driven logging and extracts pattern candidates from every novel fix. The MCP server makes it all programmatically accessible. The result: fewer steps to diagnosis, higher-quality fixes from canonical solutions, and a pattern bank that grows from every bug.
 
 ## The Problem This Solves
 
@@ -203,6 +207,71 @@ Three delegation modes based on classifier confidence:
 - **No match:** Exploratory mode — inspect locals at error site, walk the call stack.
 
 Full spec with typed tool signatures, evidence format, and integration points: [`protocol/debug-subagent.md`](protocol/debug-subagent.md).
+
+## MCP Server — Programmatic Debug Tools
+
+The [MCP server](mcp-server/) exposes Debug Bank as 6 tools any MCP-compatible client can call:
+
+| Tool | What It Does |
+|------|-------------|
+| `debug_classify` | Map symptom → ranked pattern matches with confidence |
+| `debug_pattern` | Retrieve full pattern by ID, optionally a specific section |
+| `debug_search` | Full-text search across patterns and compositions |
+| `debug_record` | Record a debugging trajectory to persistent memory |
+| `debug_score` | Score a trajectory against the 6-criterion rubric (100 pts) |
+| `debug_dap_commands` | Generate DAP commands from a pattern's debugger strategy |
+
+```bash
+cd mcp-server && pip install -e .
+```
+
+Add to Claude Code (`~/.claude/mcp_servers.json`):
+```json
+{ "debug-bank": { "command": "debug-bank-mcp" } }
+```
+
+See [`mcp-server/README.md`](mcp-server/README.md) for full setup.
+
+## Auto-Instrumentation Fallback
+
+When no pattern matches and the domain catalog is empty, the [auto-instrumentation protocol](protocol/auto-instrumentation.md) prevents guessing:
+
+1. Generate 2-3 hypotheses from the symptom
+2. Instrument code with `#region DEBUG-Hn` blocks (targeted logging per hypothesis)
+3. Reproduce the bug and capture structured output
+4. Analyze logs to confirm/reject each hypothesis
+5. Fix the root cause
+6. Extract a pattern candidate to `memory/candidates/`
+
+Every novel bug that goes through this process generates a candidate pattern — the bank grows from real bugs, not theory. Templates for Python, JavaScript, TypeScript, and Go: [`skills/auto-instrument/SKILL.md`](skills/auto-instrument/SKILL.md).
+
+## Debug-Bench — Trajectory Quality Benchmark
+
+The first debugging benchmark that measures HOW you debug, not just whether you get the right answer. Three Docker scenarios with multi-service architectures:
+
+| # | Scenario | Services | Root Cause Pattern |
+|---|----------|----------|--------------------|
+| S01 | Stale Cache Race | Node.js API + Python Orders + Go Cache + Redis + Postgres + RabbitMQ | P02 + P08 |
+| S02 | Retry Storm | Python API + Downstream with maintenance windows | P06 + P03 |
+| S03 | Silent Schema Drift | Python Service A (migrations) + Service B (cached schema) | P07 + P02 + P13 |
+
+**Scoring rubric** (100 points, 6 criteria):
+
+| Criterion | Points | What It Measures |
+|-----------|--------|-----------------|
+| Pattern Check | 15 | Did you check known patterns first? |
+| Reproduction | 15 | Did you reproduce the exact error with evidence? |
+| Hypothesis Quality | 20 | Were hypotheses falsifiable and ranked? |
+| Isolation | 20 | Were hypotheses tested systematically? |
+| Root Cause Depth | 15 | Did you find the true root cause? |
+| Fix Minimality | 15 | Was the fix minimal and targeted? |
+
+```bash
+cd challenges && bash run-bench.sh S01-stale-cache-race
+python3 scoring/score.py path/to/trajectory.json
+```
+
+A principled trajectory scores 100/100 (A+). A brute-force approach scores ~16/100 (F). See [`challenges/README.md`](challenges/README.md).
 
 ## 22 Battle-Tested Patterns
 
@@ -328,12 +397,30 @@ debug-bank/
 ├── AGENTS.md                          # Cross-agent (Codex, Gemini CLI, Cursor)
 ├── protocol/
 │   ├── debug-trajectory.md            # The 7-step protocol
-│   ├── debug-subagent.md              # v3: Pattern-guided debug subagent spec
+│   ├── debug-subagent.md              # Pattern-guided debug subagent spec
+│   ├── auto-instrumentation.md        # v5: Hypothesis-driven fallback for novel bugs
 │   ├── 3-exchange-rule.md             # When to stop and re-plan
 │   ├── difficulty-tiers.md            # L1-L4 scale selector
 │   └── feedback-capture.md            # Corrections → persistent rules
 ├── classifier/
-│   └── symptom-classifier.md          # v3: Symptom → pattern matcher with confidence scoring
+│   └── symptom-classifier.md          # Symptom → pattern matcher with confidence scoring
+├── mcp-server/                        # v5: MCP server — programmatic access to Debug Bank
+│   ├── src/debug_bank_mcp/
+│   │   ├── server.py                  # Entry point (6 tools)
+│   │   ├── tools/                     # classify, pattern, search, record, score
+│   │   ├── bridge/dap_bridge.py       # DAP command generator from pattern strategies
+│   │   └── memory/trajectory_store.py # JSON-file trajectory persistence
+│   ├── pyproject.toml
+│   └── README.md
+├── challenges/                        # v5: Debug-Bench — trajectory quality benchmark
+│   ├── S01-stale-cache-race/          # Node.js + Python + Go + Redis + Postgres + RabbitMQ
+│   ├── S02-retry-storm/               # Python API + Downstream with maintenance windows
+│   ├── S03-silent-schema-drift/       # Python Service A + Service B with cached schema
+│   ├── scoring/
+│   │   ├── rubric.md                  # 6-criterion rubric (100 points)
+│   │   └── score.py                   # Trajectory scorer
+│   ├── run-bench.sh                   # Docker runner
+│   └── README.md
 ├── patterns/
 │   ├── P01 through P22               # 22 patterns, each with debugger strategy
 │   └── TEMPLATE.md                    # Add your own (includes debugger_strategy section)
@@ -354,7 +441,8 @@ debug-bank/
 │   └── domain-catalogs.md             # Organizing bugs by subsystem
 ├── skills/
 │   ├── debug-trajectory/SKILL.md      # Claude Code skill
-│   └── pattern-check/SKILL.md        # Pre-investigation scan
+│   ├── pattern-check/SKILL.md        # Pre-investigation scan
+│   └── auto-instrument/SKILL.md      # v5: Auto-instrumentation templates (Python/JS/TS/Go)
 ├── examples/                          # 20 real bug trajectories
 │   ├── voice-pipeline/
 │   ├── api-integration/

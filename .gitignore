@@ -5,3 +5,6 @@
 .claude/
 .omc/
 debug-memory/
+__pycache__/
+*.pyc
+*.egg-info/

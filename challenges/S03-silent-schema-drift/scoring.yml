@@ -1,0 +1,19 @@
+scenario: S03
+name: Silent Schema Drift
+patterns: [P07, P02, P13]
+composition: C03
+expected_steps: 6
+red_herrings:
+  - "migration did not run on production"
+  - "service code does not handle new columns"
+  - "ORM caching old schema"
+root_cause: "Stale schema cache in Service B is overwritten by a frequent refresh path that reads pre-migration connection pool entries, silently dropping new columns"
+fix_keywords:
+  - "invalidate cache"
+  - "delete schema key"
+  - "restart"
+  - "fresh connection"
+  - "pool refresh"
+  - "remove notify refresh"
+  - "connection pool"
+  - "new connection"

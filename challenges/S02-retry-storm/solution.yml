@@ -1,0 +1,39 @@
+scenario: S02
+name: Retry Storm Amplification
+
+root_cause: >
+  The API server has per-request exponential backoff retry logic with no
+  service-level circuit breaker. During the simulated maintenance window,
+  every request to the downstream service times out, triggering 3 retries
+  per request. Combined with the caller retrying at a higher level, each
+  original request generates up to 9 downstream calls. The downstream
+  service saturates, all requests time out, and retries multiply further
+  in a feedback loop. This mirrors the Feign 4.1 upgrade pattern where
+  "improved resilience defaults" silently enabled retries on POST requests.
+
+patterns:
+  - P06: "Dependency Resolution Cascade — upgrade changed retry behavior silently"
+  - P03: "Observer/Hook Multiplier — each retry layer multiplies downstream load"
+
+fix:
+  description: >
+    Disable per-request retries for non-idempotent operations (or add a
+    circuit breaker that opens after N consecutive failures, short-circuiting
+    the retry amplification). The immediate fix is MAX_RETRIES=0 on the
+    downstream call. The proper fix adds a circuit breaker with a half-open
+    state and adds idempotency keys so retries are safe when re-enabled.
+  approach: "disable retries or add circuit breaker"
+  alternative: >
+    Add idempotency keys to all requests so retries are safe, then enforce a
+    retry budget: total retries across all in-flight requests must not exceed
+    10% of the original request rate.
+
+verification:
+  - "Load test at 3x traffic with downstream artificially returning 503 — success rate stays >90%"
+  - "Request count at downstream stays within 1.1x of API server inbound count"
+  - "No duplicate side effects produced during a maintenance window"
+
+blast_radius:
+  - "Duplicate writes created during the storm need idempotency check and deduplication"
+  - "Downstream service may have rate-limited the caller; check for blocks"
+  - "Other services using the same retry configuration are vulnerable"

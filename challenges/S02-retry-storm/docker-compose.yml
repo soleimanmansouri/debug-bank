@@ -1,0 +1,33 @@
+services:
+  downstream:
+    build: ./services/downstream
+    environment:
+      # How long the simulated maintenance window lasts (seconds)
+      MAINTENANCE_DURATION_S: "60"
+      # Start maintenance immediately on boot
+      MAINTENANCE_DELAY_S: "10"
+    ports:
+      - "8011:8011"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8011/health')\""]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  api-server:
+    build: ./services/api-server
+    environment:
+      DOWNSTREAM_URL: http://downstream:8011
+      # BUG: 3 retries with exponential backoff, no circuit breaker
+      MAX_RETRIES: "3"
+      RETRY_BACKOFF_BASE_MS: "200"
+    ports:
+      - "8010:8010"
+    depends_on:
+      downstream:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8010/health')\""]
+      interval: 3s
+      timeout: 5s
+      retries: 10
