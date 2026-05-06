@@ -20,6 +20,7 @@ KEYWORD_INDEX: list[tuple[str, str, list[str]]] = [
     ("expression not evaluated, literal {{ in output, template as string", "P14", ["P11"]),
     ("multi-output node rejects valid format, branch routing fails", "P15", []),
     ("binary data is string or URL instead of bytes, file attachment broken", "P16", []),
+    ("binary data is reference, storage reference not bytes, filesystem-v2", "P16", []),
     ("LLM repeats example text verbatim, copies few-shot sample", "P04", ["P17"]),
     ("model speaks history aloud, agent reads context as dialogue", "P17", ["P04"]),
     ("farewell loop, repeating goodbye, goodbye fires multiple times", "P18", ["P19"]),
