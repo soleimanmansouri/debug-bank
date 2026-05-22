@@ -1,6 +1,6 @@
 # Debug Bank MCP Server
 
-MCP server that exposes Debug Bank's 22 patterns, symptom classifier, trajectory memory, and DAP bridge as tools any MCP-compatible client can call.
+MCP server that exposes Debug Bank's 24 patterns, symptom classifier, trajectory memory, and DAP bridge as tools any MCP-compatible client can call.
 
 ## Installation
 
@@ -42,7 +42,7 @@ The server communicates over stdio using the MCP protocol.
 | Tool | Description |
 |------|-------------|
 | `debug_classify` | Map a symptom description to ranked pattern matches with confidence |
-| `debug_pattern` | Retrieve full pattern content by ID (P01-P22), optionally a specific section |
+| `debug_pattern` | Retrieve full pattern content by ID (P01-P24), optionally a specific section |
 | `debug_search` | Full-text search across all patterns and compositions |
 | `debug_record` | Record a completed debugging trajectory to memory |
 | `debug_score` | Score a trajectory against the 6-criterion rubric (100 points) |

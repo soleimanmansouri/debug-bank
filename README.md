@@ -64,7 +64,7 @@ Four layers that compound over time:
 
 | Layer | What It Does | How It Helps |
 |-------|-------------|--------------|
-| **Pattern Bank** (P01-P22) | Generalized root cause patterns with debugger strategies | 30-second match + targeted breakpoints |
+| **Pattern Bank** (P01-P24) | Generalized root cause patterns with debugger strategies | 30-second match + targeted breakpoints |
 | **Symptom Classifier** | Keyword-driven symptom → pattern lookup | Structured hypothesis ranking before touching code |
 | **MCP Server** | Programmatic access to patterns, classifier, trajectory memory | Any MCP-compatible agent gets debug tools natively |
 | **Debug Subagent Protocol** | Pattern-guided runtime debugging via PDB/JDB | 2-4 targeted breakpoints instead of 15+ blind ones |
@@ -471,7 +471,7 @@ debug-bank/
 | Research | Contribution | How Debug Bank Uses It |
 |----------|-------------|----------------------|
 | [Google ReasoningBank](https://arxiv.org/abs/2504.09762) (2025) | Distilling reasoning from failures yields +8.3% WebArena, +4.6% SWE-Bench | Pattern bank + domain catalogs = production implementation of this concept |
-| [AgentDebug](https://arxiv.org/abs/2509.25370) (ICLR 2026) | Agent Error Taxonomy across 5 failure categories, +24% all-correct accuracy | P01-P22 categories map to and extend the taxonomy |
+| [AgentDebug](https://arxiv.org/abs/2509.25370) (ICLR 2026) | Agent Error Taxonomy across 5 failure categories, +24% all-correct accuracy | P01-P24 categories map to and extend the taxonomy |
 | [Debug2Fix](https://arxiv.org/abs/2602.18571) (2026) | Subagent debugger architecture, +12-22% fix rate via PDB/JDB | Debug subagent protocol adds pattern-guided breakpoints to this architecture |
 | [debug-gym](https://arxiv.org/abs/2503.21557) (2025) | Text-based interactive debugging environment for LLM agents | Debugger strategy fields designed to be compatible with debug-gym tool interface |
 | Trajectory-based learning | Searchable, pattern-linked debug entries | Every recorded trajectory feeds the classifier and grows the pattern bank |
