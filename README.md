@@ -422,7 +422,7 @@ debug-bank/
 │   ├── run-bench.sh                   # Docker runner
 │   └── README.md
 ├── patterns/
-│   ├── P01 through P22               # 22 patterns, each with debugger strategy
+│   ├── P01 through P24               # 24 patterns, each with debugger strategy
 │   └── TEMPLATE.md                    # Add your own (includes debugger_strategy section)
 ├── compositions/                      # Common pattern combinations
 │   ├── C01 through C05               # 5 documented compositions

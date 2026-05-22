@@ -40,6 +40,8 @@ Patterns are generalized root cause types extracted from real debugging sessions
 | P20 | Filler/Background Audio Pipeline Contention | Verify filler stops BEFORE control frames (Cancel, End) |
 | P21 | Untested Handler Path After Shared Code Change | Test EACH handler path after modifying shared code |
 | P22 | Iterative Fix Regression (Failswitch) | STOP after 2 failed fixes — deep analyze before attempt 3 |
+| P23 | S2S Native Audio Model Voice Quality Limits | Compare S2S output with standalone TTS — if only S2S degrades, switch to cascade |
+| P24 | API Strict Validation Upgrade | When code breaks with no local change, check if a third-party API tightened validation |
 
 ## Pattern Categories
 
@@ -47,8 +49,8 @@ Patterns are generalized root cause types extracted from real debugging sessions
 - **Data Integrity** (P02, P09): Bugs from competing data writers
 - **Configuration** (P07, P08, P10): Bugs from multi-source config
 - **Dependencies** (P06): Bugs from package management
-- **Platform Quirks** (P11-P16): Bugs from platform-specific behavior
-- **LLM/AI** (P04, P17-P19, P22): Bugs specific to AI/LLM systems
+- **Platform Quirks** (P11-P16, P24): Bugs from platform-specific behavior
+- **LLM/AI** (P04, P17-P19, P22, P23): Bugs specific to AI/LLM systems
 
 ## Adding New Patterns
 
