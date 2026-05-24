@@ -273,7 +273,7 @@ python3 scoring/score.py path/to/trajectory.json
 
 A principled trajectory scores 100/100 (A+). A brute-force approach scores ~16/100 (F). See [`challenges/README.md`](challenges/README.md).
 
-## 22 Battle-Tested Patterns
+## 24 Battle-Tested Patterns
 
 Each pattern has: description, 30-second checklist, real-world examples, fix strategy, prevention guide, and **debugger strategy** (targeted breakpoints, watch expressions, isolation technique for PDB/JDB).
 
@@ -465,6 +465,22 @@ debug-bank/
 **User-driven self-improvement** — Feedback rules capture corrections with WHY context. The agent gets better at matching your expectations over time.
 
 **Evidence-based** — Every pattern has a check list. Every catalog entry links to a pattern ID. Nothing is "just trust me."
+
+## How Debug Bank Compares
+
+The space is moving fast. Here's how Debug Bank relates to adjacent projects and benchmarks:
+
+| Project / Benchmark | What it does | Overlap with Debug Bank | What Debug Bank adds |
+|---|---|---|---|
+| [Syncause / debug-skill](https://github.com/Syncause/debug-skill) | Skill + MCP that injects runtime evidence (traces, vars, request params) before the agent patches | Same "stop guesswork" audience | Generalized pattern library (P01–P24), classifier, and debugger strategies — not just evidence injection |
+| [claude-code-debug-mode](https://github.com/doraemonkeys/claude-code-debug-mode), [debug-mode-skill](https://github.com/franzenzenhofer/debug-mode-skill) | Hypothesis-driven debug skills with `[DEBUG H1]` tagged logs and mandatory regression test | Protocol layer | A reusable pattern bank, an MCP API, and a quality benchmark — protocol is one of four layers |
+| [obra/superpowers `systematic-debugging`](https://github.com/obra/superpowers) | 4-phase debug protocol (reproduce → collect → analyze → verify) | Protocol layer | Pattern library, classifier, debugger strategies, and Debug-Bench |
+| [debugmcp/mcp-debugger](https://github.com/debugmcp/mcp-debugger), [KashunCheng/dap_mcp](https://github.com/KashunCheng/dap_mcp), and other DAP bridges | Expose debugger access (breakpoints, step, watch) to AI agents over MCP | Orthogonal — runtime mechanics, not knowledge | Pattern-guided breakpoint placement — Debug Bank can drive any DAP MCP server |
+| [ProcBench](https://arxiv.org/abs/2605.20251) (Alibaba, May 2026) | Process-level *defect ontology* and risk scorecards across SWE-bench / TerminalBench / AndroidBench | Both score debugging process, not just fix correctness | Debug-Bench scores **trajectory quality** with a 6-criterion rubric (pattern check, reproduction, hypothesis quality, isolation, root-cause depth, fix minimality) on runnable Docker scenarios — accessible alongside academic frameworks |
+| [Google ReasoningBank](https://arxiv.org/abs/2504.09762) | Distilled failure reasoning improves WebArena +8.3%, SWE-Bench +4.6% | Same compound-learning thesis | A concrete implementation: 24 named patterns, classifier, MCP server, auto-extraction loop |
+| [Debug2Fix](https://arxiv.org/abs/2602.18571) | Subagent debugger architecture with PDB/JDB, +12-22% fix rate | Same Layer 2 target | Pattern-guided breakpoints (fewer, smarter) instead of brute-force stepping |
+
+**Where Debug Bank is unique:** the combination of (1) a generalized, transferable pattern library, (2) a symptom classifier that maps free-text bug reports to pattern IDs, (3) an MCP server exposing the bank as tools, (4) auto-instrumentation that materializes new patterns from novel fixes, and (5) a runnable Docker benchmark scoring debugging quality. No single competitor ships all five.
 
 ## Research Foundation
 
