@@ -64,7 +64,7 @@ Four layers that compound over time:
 
 | Layer | What It Does | How It Helps |
 |-------|-------------|--------------|
-| **Pattern Bank** (P01-P24) | Generalized root cause patterns with debugger strategies | 30-second match + targeted breakpoints |
+| **Pattern Bank** (P01-P29) | Generalized root cause patterns with debugger strategies | 30-second match + targeted breakpoints |
 | **Symptom Classifier** | Keyword-driven symptom → pattern lookup | Structured hypothesis ranking before touching code |
 | **MCP Server** | Programmatic access to patterns, classifier, trajectory memory | Any MCP-compatible agent gets debug tools natively |
 | **Debug Subagent Protocol** | Pattern-guided runtime debugging via PDB/JDB | 2-4 targeted breakpoints instead of 15+ blind ones |
@@ -273,7 +273,7 @@ python3 scoring/score.py path/to/trajectory.json
 
 A principled trajectory scores 100/100 (A+). A brute-force approach scores ~16/100 (F). See [`challenges/README.md`](challenges/README.md).
 
-## 24 Battle-Tested Patterns
+## 29 Battle-Tested Patterns
 
 Each pattern has: description, 30-second checklist, real-world examples, fix strategy, prevention guide, and **debugger strategy** (targeted breakpoints, watch expressions, isolation technique for PDB/JDB).
 
@@ -291,6 +291,8 @@ Each pattern has: description, 30-second checklist, real-world examples, fix str
 |----|---------|-------------|
 | P02 | [Multiple Write Sources → Corruption](patterns/P02-multiple-writers.md) | Grep for ALL writes to the same target |
 | P09 | [Auto-Apply Pipeline Writing Feedback as Data](patterns/P09-auto-apply-corruption.md) | Validate payload matches target field structure |
+| P25 | [Data Migration Rewrites Signed Content](patterns/P25-migration-breaks-signature-hash.md) | Never UPDATE hashed columns on signed rows; old signatures must still verify |
+| P29 | [Audit-Trail Gaps and NEW-Only Trigger Guards](patterns/P29-audit-trail-gaps-new-only-guards.md) | Every new regulated table has an audit trigger; UPDATE guards check OLD too |
 
 ### Configuration
 | ID | Pattern | Quick Check |
@@ -298,6 +300,13 @@ Each pattern has: description, 30-second checklist, real-world examples, fix str
 | P07 | [Stale/Dead Config](patterns/P07-stale-config.md) | Trace where runtime actually reads from |
 | P08 | [Config Resolution Chain Gap](patterns/P08-config-chain-gap.md) | Trace the full fallback chain |
 | P10 | [Contradictory Multi-Source Config](patterns/P10-contradictory-config.md) | Validate ALL sibling fields match provider |
+| P26 | [Signature Field-List Version Ordered by Migration File Name](patterns/P26-signature-version-by-migration-name.md) | No duplicate migration timestamps; released field lists pinned in a test |
+
+### Merge Workflow
+| ID | Pattern | Quick Check |
+|----|---------|-------------|
+| P27 | [Stacked PRs Conflict After Parent Squash Merge](patterns/P27-stacked-prs-squash-merge.md) | Merge parents first, then rebase/merge main into children |
+| P28 | [Whole-File Conflict Resolution Drops Main's Changes](patterns/P28-whole-file-conflict-resolution.md) | Diff merge-base..origin/main per file; resolve hunks, not files |
 
 ### Dependencies
 | ID | Pattern | Quick Check |
@@ -422,7 +431,7 @@ debug-bank/
 │   ├── run-bench.sh                   # Docker runner
 │   └── README.md
 ├── patterns/
-│   ├── P01 through P24               # 24 patterns, each with debugger strategy
+│   ├── P01 through P29               # 29 patterns, each with debugger strategy
 │   └── TEMPLATE.md                    # Add your own (includes debugger_strategy section)
 ├── compositions/                      # Common pattern combinations
 │   ├── C01 through C05               # 5 documented compositions
@@ -472,12 +481,12 @@ The space is moving fast. Here's how Debug Bank relates to adjacent projects and
 
 | Project / Benchmark | What it does | Overlap with Debug Bank | What Debug Bank adds |
 |---|---|---|---|
-| [Syncause / debug-skill](https://github.com/Syncause/debug-skill) | Skill + MCP that injects runtime evidence (traces, vars, request params) before the agent patches | Same "stop guesswork" audience | Generalized pattern library (P01–P24), classifier, and debugger strategies — not just evidence injection |
+| [Syncause / debug-skill](https://github.com/Syncause/debug-skill) | Skill + MCP that injects runtime evidence (traces, vars, request params) before the agent patches | Same "stop guesswork" audience | Generalized pattern library (P01–P29), classifier, and debugger strategies — not just evidence injection |
 | [claude-code-debug-mode](https://github.com/doraemonkeys/claude-code-debug-mode), [debug-mode-skill](https://github.com/franzenzenhofer/debug-mode-skill) | Hypothesis-driven debug skills with `[DEBUG H1]` tagged logs and mandatory regression test | Protocol layer | A reusable pattern bank, an MCP API, and a quality benchmark — protocol is one of four layers |
 | [obra/superpowers `systematic-debugging`](https://github.com/obra/superpowers) | 4-phase debug protocol (reproduce → collect → analyze → verify) | Protocol layer | Pattern library, classifier, debugger strategies, and Debug-Bench |
 | [debugmcp/mcp-debugger](https://github.com/debugmcp/mcp-debugger), [KashunCheng/dap_mcp](https://github.com/KashunCheng/dap_mcp), and other DAP bridges | Expose debugger access (breakpoints, step, watch) to AI agents over MCP | Orthogonal — runtime mechanics, not knowledge | Pattern-guided breakpoint placement — Debug Bank can drive any DAP MCP server |
 | [ProcBench](https://arxiv.org/abs/2605.20251) (Alibaba, May 2026) | Process-level *defect ontology* and risk scorecards across SWE-bench / TerminalBench / AndroidBench | Both score debugging process, not just fix correctness | Debug-Bench scores **trajectory quality** with a 6-criterion rubric (pattern check, reproduction, hypothesis quality, isolation, root-cause depth, fix minimality) on runnable Docker scenarios — accessible alongside academic frameworks |
-| [Google ReasoningBank](https://arxiv.org/abs/2504.09762) | Distilled failure reasoning improves WebArena +8.3%, SWE-Bench +4.6% | Same compound-learning thesis | A concrete implementation: 24 named patterns, classifier, MCP server, auto-extraction loop |
+| [Google ReasoningBank](https://arxiv.org/abs/2504.09762) | Distilled failure reasoning improves WebArena +8.3%, SWE-Bench +4.6% | Same compound-learning thesis | A concrete implementation: 29 named patterns, classifier, MCP server, auto-extraction loop |
 | [Debug2Fix](https://arxiv.org/abs/2602.18571) | Subagent debugger architecture with PDB/JDB, +12-22% fix rate | Same Layer 2 target | Pattern-guided breakpoints (fewer, smarter) instead of brute-force stepping |
 
 **Where Debug Bank is unique:** the combination of (1) a generalized, transferable pattern library, (2) a symptom classifier that maps free-text bug reports to pattern IDs, (3) an MCP server exposing the bank as tools, (4) auto-instrumentation that materializes new patterns from novel fixes, and (5) a runnable Docker benchmark scoring debugging quality. No single competitor ships all five.
@@ -487,7 +496,7 @@ The space is moving fast. Here's how Debug Bank relates to adjacent projects and
 | Research | Contribution | How Debug Bank Uses It |
 |----------|-------------|----------------------|
 | [Google ReasoningBank](https://arxiv.org/abs/2504.09762) (2025) | Distilling reasoning from failures yields +8.3% WebArena, +4.6% SWE-Bench | Pattern bank + domain catalogs = production implementation of this concept |
-| [AgentDebug](https://arxiv.org/abs/2509.25370) (ICLR 2026) | Agent Error Taxonomy across 5 failure categories, +24% all-correct accuracy | P01-P24 categories map to and extend the taxonomy |
+| [AgentDebug](https://arxiv.org/abs/2509.25370) (ICLR 2026) | Agent Error Taxonomy across 5 failure categories, +24% all-correct accuracy | P01-P29 categories map to and extend the taxonomy |
 | [Debug2Fix](https://arxiv.org/abs/2602.18571) (2026) | Subagent debugger architecture, +12-22% fix rate via PDB/JDB | Debug subagent protocol adds pattern-guided breakpoints to this architecture |
 | [debug-gym](https://arxiv.org/abs/2503.21557) (2025) | Text-based interactive debugging environment for LLM agents | Debugger strategy fields designed to be compatible with debug-gym tool interface |
 | Trajectory-based learning | Searchable, pattern-linked debug entries | Every recorded trajectory feeds the classifier and grows the pattern bank |

@@ -56,9 +56,10 @@ You should see output listing changed files, handlers, and any pattern matches.
 
 ## How It Works
 
-1. **File scan** — The script runs `git diff origin/main..HEAD` to find changed Python files
+1. **File scan** — The script runs `git diff origin/main..HEAD` to find changed Python and SQL files
 2. **Handler detection** — It greps for `async def handle_` to identify modified handler functions
-3. **Pattern matching** — Each of the 21 debug-bank patterns has associated keywords. The script checks if any keyword appears in the diff
+3. **Pattern matching** — Debug-bank patterns have associated keywords. The script checks if any keyword appears in the diff (fixed-string, case-insensitive)
+3b. **Migration checks** — Structural `file:line` checks on SQL migrations for P25, P26 and P29 (see below)
 4. **Checklist generation** — For each changed handler, it prints a test checklist (test the path, check P20 filler contention, check P02 multiple writers)
 5. **Exit code** — Returns 1 if any patterns are flagged or handlers need testing, 0 if clean
 
@@ -77,7 +78,7 @@ bash ~/Cara8/debug-bank/integrations/pre-deploy-check.sh HEAD~3..HEAD
 
 ## What Gets Checked
 
-The script matches diff content against keywords for all 21 patterns:
+The script matches diff content against keywords per pattern:
 
 | Pattern | Trigger Keywords |
 |---------|-----------------|
@@ -85,7 +86,25 @@ The script matches diff content against keywords for all 21 patterns:
 | P18 | `CancelFrame`, `EndFrame`, `end_conversation`, `timeout` |
 | P20 | `filler`, `background_audio`, `hold_music`, `start_filler`, `stop_filler` |
 | P21 | `handle_`, `handler`, `shared_code`, `decorator` |
+| P25 | `content_hash`, `record_hash`, `signed_fields`, `esig_` |
+| P26 | `hash_fields`, `field_list_version`, `signature_version` |
+| P27 | `merge_method`, `--squash`, `gh pr merge` |
+| P28 | `<<<<<<<`, `>>>>>>>`, `--ours`, `--theirs` |
+| P29 | `create table`, `create trigger`, `audit_trail`, `immutable` |
 | ... | See script source for full keyword list |
+
+### Migration Checks (SQL)
+
+Besides keywords, the script inspects added/modified `*migration*/*.sql` files at the end of the range and prints `file:line` findings:
+
+| Pattern | Check |
+|---------|-------|
+| P25 | `UPDATE ... SET` at top level or in a `DO` block (function bodies are skipped). Set `DEBUG_BANK_SIGNED_TABLES='capas\|deviations'` to limit it to signed tables |
+| P26 | An added migration shares its timestamp prefix with another migration in the same directory |
+| P29 | `CREATE TABLE` with no trigger statement mentioning `audit` and that table in the changed migrations |
+| P29 | `CREATE TRIGGER ... UPDATE ... WHEN (...)` that references `NEW.` but not `OLD.` |
+
+These are regex heuristics, not a SQL parser: treat findings as review prompts.
 
 ## Extending
 
@@ -102,4 +121,4 @@ To add keywords for a new pattern:
 
 **"Could not resolve diff range"** — The default range `origin/main..HEAD` requires a remote named `origin` with a `main` branch. Pass a custom range: `bash pre-deploy-check.sh HEAD~5..HEAD`.
 
-**No output / no files** — If there are no Python file changes in the diff range, the script exits cleanly with "Nothing to check."
+**No output / no files** — If there are no Python or SQL file changes in the diff range, the script exits cleanly with "Nothing to check."

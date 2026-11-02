@@ -42,12 +42,18 @@ Patterns are generalized root cause types extracted from real debugging sessions
 | P22 | Iterative Fix Regression (Failswitch) | STOP after 2 failed fixes — deep analyze before attempt 3 |
 | P23 | S2S Native Audio Model Voice Quality Limits | Compare S2S output with standalone TTS — if only S2S degrades, switch to cascade |
 | P24 | API Strict Validation Upgrade | When code breaks with no local change, check if a third-party API tightened validation |
+| P25 | Data Migration Rewrites Signed Content | Never UPDATE hashed columns on signed rows; old signatures must still verify |
+| P26 | Signature Field-List Version Ordered by Migration File Name | No duplicate migration timestamps; released field lists pinned in a test |
+| P27 | Stacked PRs Conflict After Parent Squash Merge | Merge parents first, then rebase/merge main into children |
+| P28 | Whole-File Conflict Resolution Drops Main's Changes | `git diff <merge-base> origin/main -- file` before resolving; resolve hunks, not files |
+| P29 | Audit-Trail Gaps and NEW-Only Trigger Guards | Every new regulated table has an audit trigger; UPDATE guards check OLD too |
 
 ## Pattern Categories
 
 - **Code Structure** (P01, P03, P05, P20, P21): Bugs from how code is organized
-- **Data Integrity** (P02, P09): Bugs from competing data writers
-- **Configuration** (P07, P08, P10): Bugs from multi-source config
+- **Data Integrity** (P02, P09, P25, P29): Bugs from competing data writers and regulated-record integrity
+- **Configuration** (P07, P08, P10, P26): Bugs from multi-source config
+- **Merge Workflow** (P27, P28): Bugs introduced while integrating branches
 - **Dependencies** (P06): Bugs from package management
 - **Platform Quirks** (P11-P16, P24): Bugs from platform-specific behavior
 - **LLM/AI** (P04, P17-P19, P22, P23): Bugs specific to AI/LLM systems
