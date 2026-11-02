@@ -1,6 +1,6 @@
 # Debug Bank v3 — Symptom-to-Pattern Classifier
 
-**Purpose:** Bridge the knowledge layer to runtime debugging. Feed a symptom description into this template and receive ranked pattern matches with confidence scores — before touching any code. This replaces the manual "scan 22 pattern titles and guess" step with a structured, reproducible lookup.
+**Purpose:** Bridge the knowledge layer to runtime debugging. Feed a symptom description into this template and receive ranked pattern matches with confidence scores — before touching any code. This replaces the manual "scan 29 pattern titles and guess" step with a structured, reproducible lookup.
 
 **When to run:** Step 0 — before the debug trajectory protocol begins. The output feeds directly into Step 3 (Hypothesize) with pre-ranked candidates.
 
@@ -22,6 +22,8 @@ Classify the symptom into one or more signal types before querying the index.
 | S8 | **Platform-specific** | Fails in n8n, Pipecat, or a specific runtime due to its own behavior |
 | S9 | **LLM behavioral** | AI model copies examples, speaks context aloud, loops, or ignores constraints |
 | S10 | **Accumulated fix logic** | Multiple patches applied, bug persists or resurfaces |
+| S11 | **Regulated-record integrity** | E-signature verifies as "changed", audit trail missing, locked record editable |
+| S12 | **Merge/integration regression** | Conflicts or lost changes right after merging branches |
 
 ---
 
@@ -56,6 +58,12 @@ Match keywords from the symptom description to pattern IDs. Primary = most likel
 | wrapper inherits wrong default, subclass wrong base value | P01 | P06 |
 | free-text written as structured field, narrative in typed column | P09 | P02 |
 | provider mismatch, wrong voice ID, wrong model ID, wrong API target | P10 | P07, P08 |
+| signature verifies as changed after deploy, content hash mismatch, record changed after signing | P25 | P26, P02 |
+| data migration UPDATE on signed table, enum rename on signed rows, back-fill of hashed column | P25 | P29 |
+| hash field list changed, wrong signature version, duplicate migration timestamp, field slid into released version | P26 | P25, P27 |
+| stacked PR conflicts after squash merge, child branch conflicts in parent's files | P27 | P28 |
+| fixed bug returns after merge, change lost after conflict resolution, --ours/--theirs used | P28 | P22, P02 |
+| no audit trail for new table, missing audit trigger, locked record editable, back to draft bypasses guard, trigger WHEN NEW only | P29 | P05, P25 |
 | intermittent wrong price, race on concurrent writes | P02 + P08 → C01 | — |
 | retry storm, traffic amplification after upgrade | P06 + P03 → C02 | — |
 | no errors but wrong results, 100% success rate with bad data | P13 + P07 → C03 | — |

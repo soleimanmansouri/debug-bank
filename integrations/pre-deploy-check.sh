@@ -64,7 +64,16 @@ PATTERN_KEYWORDS=(
     "P19:prompt_engineering,system_prompt,few_shot"
     "P20:filler,background_audio,hold_music,queue_frame,start_filler,stop_filler"
     "P21:handle_,handler,shared_code,decorator,base_class"
+    "P25:content_hash,record_hash,signed_fields,signature_fields,esig_,electronic_signature"
+    "P26:hash_fields,field_list_version,signature_version,current_version"
+    "P27:merge_method,--squash,gh pr merge"
+    "P28:<<<<<<<,>>>>>>>,--ours,--theirs"
+    "P29:create table,create trigger,audit_trail,immutable"
 )
+
+# Optional: regex of signed table names (e.g. "capas|deviations"). If set,
+# the P25 migration check only flags UPDATEs on these tables; else all UPDATEs.
+SIGNED_TABLES="${DEBUG_BANK_SIGNED_TABLES:-}"
 
 # --- Functions ---------------------------------------------------------------
 
@@ -82,11 +91,80 @@ print_section() {
 }
 
 get_changed_python_files() {
-    git diff --name-only --diff-filter=ACMR "$DIFF_RANGE" -- '*.py' 2>/dev/null || true
+    git diff --name-only --diff-filter=ACMR "$DIFF_RANGE" -- '*.py' '*.sql' 2>/dev/null || true
 }
 
 get_diff_content() {
-    git diff "$DIFF_RANGE" -- '*.py' 2>/dev/null || true
+    git diff "$DIFF_RANGE" -- '*.py' '*.sql' 2>/dev/null || true
+}
+
+# Structural checks on added/modified SQL migrations (P25, P26, P29).
+# Reads files at the end of the range; prints one "file:line: [Pxx] ..." per finding.
+# ponytail: regex/awk heuristics, not a SQL parser; a real parser if false positives hurt.
+check_migrations() {
+    local end="${DIFF_RANGE##*..}"
+    { [ "$end" = "$DIFF_RANGE" ] || [ -z "$end" ]; } && end=HEAD
+    local files
+    files=$(git diff --name-only --diff-filter=AM "$DIFF_RANGE" -- '*migration*/*.sql' 2>/dev/null || true)
+    [ -z "$files" ] && return 0
+
+    local f all="" stmts
+    while IFS= read -r f; do
+        local body
+        body=$(git show "$end:$f" 2>/dev/null) || continue
+        all="${all}${body}"$'\n;\n'
+
+        # P25: UPDATE in migration code (top level or DO block, not function bodies).
+        echo "$body" | awk -v f="$f" -v re="$SIGNED_TABLES" '
+            { l = tolower($0); sub(/--.*/, "", l)
+              n = gsub(/\$[a-z_0-9]*\$/, "&", l)
+              if (!inb && n % 2 == 1) { inb = 1; kind = (l ~ /(^|[^a-z_])do[ \t]*\$/) ? "do" : "fn"; next }
+              if (inb && n % 2 == 1) { inb = 0; next }
+              if ((!inb || kind == "do") && l ~ /^[ \t]*update[ \t]+[a-z_."]+/) {
+                  t = l; sub(/^[ \t]*update[ \t]+(only[ \t]+)?/, "", t); sub(/[ \t(].*/, "", t)
+                  if (re == "" || t ~ re)
+                      print f ":" NR ": [P25] data migration UPDATE on " t " - must not touch signed (hashed) columns of signed rows"
+              } }'
+    done <<< "$files"
+
+    # P26: added migration sharing its timestamp prefix with another migration.
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        local base prefix n
+        base=$(basename "$f"); prefix="${base%%_*}"
+        n=$(git ls-tree --name-only "$end" "$(dirname "$f")/" | sed 's#.*/##' | grep -c "^${prefix}_" || true)
+        [ "$n" -gt 1 ] && echo "$f:1: [P26] migration timestamp $prefix shared by $n files - order by name is ambiguous"
+    done <<< "$(git diff --name-only --diff-filter=A "$DIFF_RANGE" -- '*migration*/*.sql' 2>/dev/null || true)"
+
+    # One statement per line, lower case, comments stripped.
+    stmts=$(echo "$all" | sed 's/--.*$//' | tr '\n' ' ' | tr 'A-Z' 'a-z' | tr ';' '\n')
+    # Audit-trigger statements, plus whole FOREACH ... END LOOP blocks (table list
+    # in the loop header, CREATE TRIGGER via EXECUTE format(... %I ...) in the body).
+    local audited loops
+    loops=$(echo "$all" | sed 's/--.*$//' | tr '\n' ' ' | tr 'A-Z' 'a-z' | sed 's/end loop/\
+/g' | grep 'foreach' | sed 's/.*foreach/foreach/' || true)
+    audited=$(printf '%s\n%s\n' "$stmts" "$loops" | grep 'trigger' | grep 'audit' || true)
+
+    # P29a: CREATE TABLE with no audit trigger anywhere in the changed migrations.
+    while IFS= read -r f; do
+        git show "$end:$f" 2>/dev/null | grep -niE '^[[:space:]]*create[[:space:]]+table[[:space:]]' | while IFS= read -r hit; do
+            local ln="${hit%%:*}" t
+            t=$(echo "${hit#*:}" | tr 'A-Z' 'a-z' | sed -E 's/.*create[[:space:]]+table[[:space:]]+(if[[:space:]]+not[[:space:]]+exists[[:space:]]+)?//; s/[[:space:](].*//; s/"//g; s/.*\.//')
+            [ -z "$t" ] && continue
+            grep -qwF -- "$t" <<< "$audited" || echo "$f:$ln: [P29] CREATE TABLE $t without an audit-trail trigger in this diff"
+        done
+    done <<< "$files"
+
+    # P29b: UPDATE trigger whose WHEN clause looks at NEW only.
+    echo "$stmts" | grep -E 'create (or replace )?trigger' | grep -E '[^a-z_]update[^a-z_]' | grep -E 'when[[:space:]]*\(' \
+        | grep 'new\.' | grep -v 'old\.' | sed -E 's/.*create (or replace )?trigger[[:space:]]+([a-z0-9_"]+).*/\2/' | while IFS= read -r name; do
+        while IFS= read -r f; do
+            git show "$end:$f" 2>/dev/null | grep -niE "create (or replace )?trigger[[:space:]]+${name}([[:space:]]|$)" | cut -d: -f1 | while read -r ln; do
+                echo "$f:$ln: [P29] UPDATE trigger $name: WHEN uses NEW only - a change of state in the same UPDATE can bypass it, check OLD too"
+            done
+        done <<< "$files"
+    done
+    return 0  # findings are reported via stdout, not the exit status
 }
 
 find_changed_handlers() {
@@ -125,7 +203,9 @@ check_patterns() {
 
         local matched_keywords=""
         for kw in "${keywords[@]}"; do
-            if echo "$diff_content" | grep -qi "$kw" 2>/dev/null; then
+            # here-string, not `echo | grep -q`: with pipefail, grep -q exiting early
+            # SIGPIPEs echo on large diffs and the match was silently lost.
+            if grep -qiF -- "$kw" <<< "$diff_content" 2>/dev/null; then
                 if [ -z "$matched_keywords" ]; then
                     matched_keywords="$kw"
                 else
@@ -182,18 +262,18 @@ main() {
     fi
 
     # 1. Get changed Python files
-    print_section "Changed Python Files"
+    print_section "Changed Python/SQL Files"
     local changed_files
     changed_files=$(get_changed_python_files)
     if [ -z "$changed_files" ]; then
-        echo -e "  ${GREEN}No Python files changed in ${DIFF_RANGE}${NC}"
+        echo -e "  ${GREEN}No Python/SQL files changed in ${DIFF_RANGE}${NC}"
         echo ""
         echo -e "${GREEN}Result: Nothing to check. Safe to deploy.${NC}"
         exit 0
     fi
     local file_count
     file_count=$(echo "$changed_files" | wc -l | tr -d ' ')
-    echo "  $file_count Python file(s) changed:"
+    echo "  $file_count Python/SQL file(s) changed:"
     echo "$changed_files" | while read -r f; do echo "    - $f"; done
     echo ""
 
@@ -258,6 +338,19 @@ main() {
         echo -e "$flagged_details"
     else
         echo -e "  ${GREEN}No patterns flagged.${NC}"
+    fi
+    echo ""
+
+    # 5b. Structural migration checks (P25, P26, P29)
+    print_section "Migration Checks (P25/P26/P29)"
+    local migration_findings migration_count=0
+    migration_findings=$(check_migrations)
+    if [ -n "$migration_findings" ]; then
+        migration_count=$(echo "$migration_findings" | grep -c .)
+        echo "$migration_findings" | sed 's/^/  /'
+        flagged_count=$(( ${flagged_count:-0} + migration_count ))
+    else
+        echo -e "  ${GREEN}No migration findings.${NC}"
     fi
     echo ""
 
