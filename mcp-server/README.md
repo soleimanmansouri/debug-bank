@@ -18,16 +18,15 @@ pip install -e ".[dap]"
 
 ### Claude Code
 
-Add to your MCP settings (`~/.claude/mcp_servers.json`):
+Register it once (user scope, available in every project):
 
-```json
-{
-  "debug-bank": {
-    "command": "debug-bank-mcp",
-    "args": []
-  }
-}
+```bash
+claude mcp add --scope user debug-bank -- debug-bank-mcp
+claude mcp list   # expect: debug-bank ... ✔ Connected
 ```
+
+Use the full path from `which debug-bank-mcp` if it is not on Claude Code's PATH.
+Restart Claude Code afterwards; the `debug_*` tools then appear.
 
 ### Any MCP client
 

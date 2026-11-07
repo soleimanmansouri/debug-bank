@@ -225,9 +225,9 @@ The [MCP server](mcp-server/) exposes Debug Bank as 6 tools any MCP-compatible c
 cd mcp-server && pip install -e .
 ```
 
-Add to Claude Code (`~/.claude/mcp_servers.json`):
-```json
-{ "debug-bank": { "command": "debug-bank-mcp" } }
+Add to Claude Code:
+```bash
+claude mcp add --scope user debug-bank -- debug-bank-mcp
 ```
 
 See [`mcp-server/README.md`](mcp-server/README.md) for full setup.
