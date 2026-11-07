@@ -6,7 +6,7 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 dependencies = [
-    "mcp>=1.0.0",
+    "mcp>=1.2,<2",  # FastMCP API; mcp 2.x renamed it to MCPServer
     "pyyaml>=6.0",
 ]
 

@@ -1,10 +1,10 @@
 """Debug Bank MCP Server — exposes patterns, classifier, and trajectory memory."""
 
-import asyncio
 from pathlib import Path
 
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
+# The tool modules register with @server.tool(), which is FastMCP's API;
+# the low-level mcp.server.Server has no .tool() and crashed on startup.
+from mcp.server.fastmcp import FastMCP
 
 from .tools.classify import register as register_classify
 from .tools.pattern import register as register_pattern
@@ -13,9 +13,9 @@ from .tools.record import register as register_record
 from .tools.score import register as register_score
 from .bridge.dap_bridge import register as register_dap
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]  # src/debug_bank_mcp/server.py -> debug-bank/
 
-server = Server("debug-bank")
+server = FastMCP("debug-bank")
 
 
 def _register_all():
@@ -27,14 +27,9 @@ def _register_all():
     register_dap(server, REPO_ROOT)
 
 
-async def _run():
-    _register_all()
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, server.create_initialization_options())
-
-
 def main():
-    asyncio.run(_run())
+    _register_all()
+    server.run()  # stdio
 
 
 if __name__ == "__main__":

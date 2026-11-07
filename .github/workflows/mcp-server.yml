@@ -1,0 +1,19 @@
+name: mcp-server
+on:
+  push:
+    paths: ["mcp-server/**", "patterns/**", ".github/workflows/mcp-server.yml"]
+  pull_request:
+    paths: ["mcp-server/**", "patterns/**", ".github/workflows/mcp-server.yml"]
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e mcp-server
+      - run: python -m unittest discover -s mcp-server/tests -v
